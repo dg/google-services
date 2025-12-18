@@ -1,0 +1,10 @@
+{
+	"name": "dg/google-services",
+    "require": {
+		"php": "8.2 - 8.5",
+        "google/apiclient": "^2.18"
+    },
+	"autoload": {
+		"classmap": ["src/"]
+	}
+}
