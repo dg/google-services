@@ -26,6 +26,7 @@ class Authenticator
 		$client->setAuthConfig($this->tokenDir . '/secret.json');
 		$client->setScopes($this->scopes);
 		$client->setAccessType('offline'); // Required for refresh token
+		$client->setPrompt('select_account consent');
 		return $client;
 	}
 
@@ -45,14 +46,22 @@ class Authenticator
 			$refreshToken = $this->client->getRefreshToken();
 			if ($refreshToken) {
 				try {
-					$this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-					$this->saveToken($this->client->getAccessToken());
+					$newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
+					if (!isset($newAccessToken['refresh_token'])) {
+						$newAccessToken['refresh_token'] = $refreshToken;
+					}
+
+					$this->client->setAccessToken($newAccessToken);
+					$this->saveToken($newAccessToken);
+
 					return $this->client;
-				} catch (Google\Exception) {
+				} catch (Google\Exception $e) {
+					// Log error here potentially
 				}
 			}
+
 			@unlink($tokenPath);
-			throw new \RuntimeException('The access token has expired and no refresh token is available. New authorization is required.');
+			throw new \RuntimeException('The access token has expired and no refresh token is available/valid. New authorization is required.');
 		}
 
 		if (!$this->client->getAccessToken()) {
