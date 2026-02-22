@@ -82,6 +82,7 @@ class CalendarManager
 	}
 
 
+	/** @param  string[]  $emails */
 	public function addAttendees(string $eventId, array $emails, bool $sendNotification = true): void
 	{
 		$event = $this->service->events->get($this->calendarId, $eventId);
@@ -113,6 +114,7 @@ class CalendarManager
 	}
 
 
+	/** @param  string[]  $emails */
 	public function removeAttendees(string $eventId, array $emails, bool $sendNotification = false): void
 	{
 		$event = $this->service->events->get($this->calendarId, $eventId);
@@ -145,6 +147,10 @@ class CalendarManager
 	}
 
 
+	/**
+	 * @param  string[]  $emails
+	 * @return array<string, true>
+	 */
 	private function normalizeEmails(array $emails): array
 	{
 		$res = [];

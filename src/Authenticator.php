@@ -11,6 +11,7 @@ class Authenticator
 
 
 	public function __construct(
+		/** @var  string[] */
 		private array $scopes,
 		private string $tokenDir,
 	) {
@@ -91,6 +92,7 @@ class Authenticator
 	}
 
 
+	/** @param  array<string, mixed>  $accessToken */
 	private function saveToken(array $accessToken): void
 	{
 		$tokenPath = $this->tokenDir . '/token.json';
