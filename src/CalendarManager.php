@@ -34,8 +34,12 @@ class CalendarManager
 			'dateTime' => $event->end->format($event->end::RFC3339),
 			'timeZone' => $event->end->getTimezone()->getName(),
 		]));
-		$blueprint->setLocation($event->location);
-		$blueprint->setDescription($event->description);
+		if ($event->location !== null) {
+			$blueprint->setLocation($event->location);
+		}
+		if ($event->description !== null) {
+			$blueprint->setDescription($event->description);
+		}
 		$blueprint->setGuestsCanInviteOthers(false);
 		$blueprint->setGuestsCanSeeOtherGuests(false);
 
