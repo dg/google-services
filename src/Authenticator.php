@@ -37,7 +37,10 @@ class Authenticator
 	{
 		$tokenPath = $this->tokenDir . '/token.json';
 		if (file_exists($tokenPath)) {
-			$accessToken = json_decode(file_get_contents($tokenPath), true);
+			$accessToken = json_decode(
+				file_get_contents($tokenPath) ?: throw new \RuntimeException("Failed to read token file: $tokenPath"),
+				true,
+			);
 			$this->client->setAccessToken($accessToken);
 		}
 
