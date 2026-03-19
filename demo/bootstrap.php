@@ -9,6 +9,7 @@ function createAuthenticator(): DG\Google\Authenticator
 		Google\Service\Drive::DRIVE,
 		Google\Service\Calendar::CALENDAR_EVENTS,
 		Google\Service\Calendar::CALENDAR_READONLY,
+		Google\Service\Meet::MEETINGS_SPACE_CREATED,
 		// ...
 	], __DIR__ . '/tokens');
 }
