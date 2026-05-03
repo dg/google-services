@@ -1,9 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace DG\Google;
+namespace DG\Google\Calendar;
 
 
-class CalendarEvent
+class Event
 {
 	public ?string $location = null;
 	public ?string $description = null;

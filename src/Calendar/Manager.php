@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace DG\Google;
+namespace DG\Google\Calendar;
 
 use Google;
 use Google\Service\Calendar;
@@ -8,7 +8,7 @@ use Google\Service\Calendar\Event as GoogleEvent;
 use Google\Service\Calendar\EventAttendee;
 
 
-class CalendarManager
+class Manager
 {
 	public const PrimaryCalendar = 'primary';
 	private Calendar $service;
@@ -22,7 +22,7 @@ class CalendarManager
 	}
 
 
-	public function createEvent(CalendarEvent $event): GoogleEvent
+	public function createEvent(Event $event): GoogleEvent
 	{
 		$blueprint = new GoogleEvent;
 		$blueprint->setSummary($event->summary);

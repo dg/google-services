@@ -18,20 +18,20 @@ A PHP library that provides a simplified interface for Google Calendar and Googl
 - Automatically refreshes expired tokens using refresh token
 - Throws `RuntimeException` when new authorization is required
 
-**CalendarManager (`src/CalendarManager.php`)**
+**Calendar\Manager (`src/Calendar/Manager.php`)**
 - Main API for calendar operations (create events, manage attendees)
 - Works with either primary calendar or specified calendar ID
 - Supports creating Google Meet meetings automatically
 - Handles recurring events with daily frequency and intervals
 - Email validation and normalization for attendees
 
-**CalendarEvent (`src/CalendarEvent.php`)**
+**Calendar\Event (`src/Calendar/Event.php`)**
 - Data transfer object for event creation
 - Supports optional location, description, reminders
 - Recurring events via `repeatCount` and `repeatIntervalDays`
 - Optional Google Meet creation via `createMeeting` flag
 
-**MeetManager (`src/MeetManager.php`)**
+**Meet\Manager (`src/Meet/Manager.php`)**
 - Creates standalone Google Meet spaces not linked to calendar events
 - Wraps `Google\Service\Meet` API
 

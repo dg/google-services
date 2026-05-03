@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace DG\Google;
+namespace DG\Google\Meet;
 
 use Google;
 use Google\Service\Meet;
 
 
-class MeetManager
+class Manager
 {
 	private Meet $service;
 
