@@ -7,7 +7,8 @@
 	"require-dev": {
 		"phpstan/phpstan": "^2.1@stable",
 		"phpstan/extension-installer": "^1.4@stable",
-		"nette/phpstan-rules": "^1.0"
+		"nette/phpstan-rules": "^1.0",
+		"nette/tester": "^2.6"
 	},
 	"autoload": {
 		"classmap": ["src/"]
