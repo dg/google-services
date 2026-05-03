@@ -11,7 +11,7 @@ class Authenticator
 
 
 	public function __construct(
-		/** @var  string[] */
+		/** @var string[] */
 		private array $scopes,
 		private string $tokenDir,
 	) {
@@ -51,17 +51,28 @@ class Authenticator
 			if ($refreshToken) {
 				try {
 					$newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-					if (!isset($newAccessToken['refresh_token'])) {
-						$newAccessToken['refresh_token'] = $refreshToken;
-					}
-
-					$this->client->setAccessToken($newAccessToken);
-					$this->saveToken($newAccessToken);
-
-					return $this->client;
 				} catch (Google\Exception $e) {
-					// Log error here potentially
+					// network/transport failure: keep the stored token so the user can retry later
+					throw new AuthException('Token refresh failed (transport): ' . $e->getMessage(), 0, $e);
 				}
+
+				if (isset($newAccessToken['error'])) {
+					// only invalid_grant means the refresh token is permanently revoked/expired
+					if ($newAccessToken['error'] === 'invalid_grant') {
+						@unlink($tokenPath);
+						throw new AuthException('Refresh token revoked or expired: ' . json_encode($newAccessToken) . '. Re-authorization is required.');
+					}
+					throw new AuthException('Refresh token rejected: ' . json_encode($newAccessToken));
+				}
+
+				if (!isset($newAccessToken['refresh_token'])) {
+					$newAccessToken['refresh_token'] = $refreshToken;
+				}
+
+				$this->client->setAccessToken($newAccessToken);
+				$this->saveToken($newAccessToken);
+
+				return $this->client;
 			}
 
 			@unlink($tokenPath);
@@ -87,7 +98,7 @@ class Authenticator
 		try {
 			$accessToken = $this->client->fetchAccessTokenWithAuthCode($authCode);
 			if (array_key_exists('error', $accessToken)) {
-				throw new AuthException('Error obtaining access token: ' . implode(', ', $accessToken));
+				throw new AuthException('Error obtaining access token: ' . json_encode($accessToken));
 			}
 			$this->client->setAccessToken($accessToken); // Sets the token to internal client
 			$this->saveToken($accessToken);
@@ -97,12 +108,18 @@ class Authenticator
 	}
 
 
-	/** @param  array<string, mixed>  $accessToken */
+	/** @param array<string, mixed> $accessToken */
 	private function saveToken(array $accessToken): void
 	{
 		$tokenPath = $this->tokenDir . '/token.json';
-		if (!file_put_contents($tokenPath, json_encode($accessToken))) {
-			throw new AuthException('Failed to save token to file: ' . $tokenPath);
+		// atomic: write to a sibling tmp file and rename, so a crash mid-write cannot corrupt token.json
+		$tmpPath = $tokenPath . '.tmp';
+		if (file_put_contents($tmpPath, json_encode($accessToken)) === false) {
+			throw new AuthException('Failed to save token to file: ' . $tmpPath);
+		}
+		if (!rename($tmpPath, $tokenPath)) {
+			@unlink($tmpPath);
+			throw new AuthException('Failed to rename token file: ' . $tmpPath . ' -> ' . $tokenPath);
 		}
 	}
 }
