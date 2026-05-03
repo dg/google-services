@@ -18,6 +18,14 @@ A PHP library that provides a simplified interface for Google Calendar and Googl
 - Automatically refreshes expired tokens using refresh token
 - Throws `RuntimeException` when new authorization is required
 
+**Gmail\Manager (`src/Gmail/Manager.php`)**
+- Main API for Gmail operations (search, threads, drafts, send, labels, attachments)
+- Works against the authenticated user (`me`)
+- MIME building delegated to `Nette\Mail\Message` (handles RFC 2047 encoding, line folding, CRLF sanitation)
+- Reply header derivation: subject / To / Cc / In-Reply-To / References pulled from the last thread message via a metadata-only fetch; the user's own address is stripped from Cc
+- Total raw attachment size capped at 18 MB (Gmail's 25 MB encoded-message limit minus base64 overhead) — enforced in `baseMail`, so library callers are protected even if they bypass `McpTools::validateAttachments`
+- Attachment downloads via `users.messages.attachments.get`; MIME types come straight from the Gmail payload
+
 **Calendar\Manager (`src/Calendar/Manager.php`)**
 - Main API for calendar operations (create events, manage attendees)
 - Works with either primary calendar or specified calendar ID
