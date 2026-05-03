@@ -31,14 +31,16 @@ class Authenticator
 
 
 	/**
-	 * @throws \RuntimeException
+	 * @throws AuthException  when no usable token is available (missing, malformed,
+	 *   refresh failed, refresh token revoked); callers should treat this as a
+	 *   recoverable "user must re-authorize" state, not a programming bug.
 	 */
 	public function authenticate(): Google\Client
 	{
 		$tokenPath = $this->tokenDir . '/token.json';
 		if (file_exists($tokenPath)) {
 			$accessToken = json_decode(
-				file_get_contents($tokenPath) ?: throw new \RuntimeException("Failed to read token file: $tokenPath"),
+				file_get_contents($tokenPath) ?: throw new AuthException("Failed to read token file: $tokenPath"),
 				true,
 			);
 			$this->client->setAccessToken($accessToken);
@@ -63,11 +65,11 @@ class Authenticator
 			}
 
 			@unlink($tokenPath);
-			throw new \RuntimeException('The access token has expired and no refresh token is available/valid. New authorization is required.');
+			throw new AuthException('The access token has expired and no refresh token is available/valid. New authorization is required.');
 		}
 
 		if (!$this->client->getAccessToken()) {
-			throw new \RuntimeException('No valid access token available. Authorization is required.');
+			throw new AuthException('No valid access token available. Authorization is required.');
 		}
 
 		return $this->client;
@@ -85,12 +87,12 @@ class Authenticator
 		try {
 			$accessToken = $this->client->fetchAccessTokenWithAuthCode($authCode);
 			if (array_key_exists('error', $accessToken)) {
-				throw new \RuntimeException('Error obtaining access token: ' . implode(', ', $accessToken));
+				throw new AuthException('Error obtaining access token: ' . implode(', ', $accessToken));
 			}
 			$this->client->setAccessToken($accessToken); // Sets the token to internal client
 			$this->saveToken($accessToken);
 		} catch (Google\Exception $e) {
-			throw new \RuntimeException('Error when exchanging code for token: ' . $e->getMessage(), $e->getCode(), $e);
+			throw new AuthException('Error when exchanging code for token: ' . $e->getMessage(), $e->getCode(), $e);
 		}
 	}
 
@@ -100,7 +102,7 @@ class Authenticator
 	{
 		$tokenPath = $this->tokenDir . '/token.json';
 		if (!file_put_contents($tokenPath, json_encode($accessToken))) {
-			throw new \RuntimeException('Failed to save token to file: ' . $tokenPath);
+			throw new AuthException('Failed to save token to file: ' . $tokenPath);
 		}
 	}
 }
