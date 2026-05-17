@@ -87,39 +87,54 @@ class Manager
 
 
 	/** @param  string[]  $emails */
-	public function addAttendees(string $eventId, array $emails, bool $sendNotification = true): void
+	public function addAttendees(string $eventId, array $emails, bool $sendNotifications = false): void
 	{
 		$event = $this->service->events->get($this->calendarId, $eventId);
-		$attendees = $event->getAttendees() ?? [];
-		$attendeeEmails = [];
-		foreach ($attendees as $attendee) {
+		$existing = $event->getAttendees() ?? [];
+		$existingEmails = [];
+		foreach ($existing as $attendee) {
 			if ($attendee instanceof EventAttendee && $attendee->getEmail()) {
-				$attendeeEmails[strtolower($attendee->getEmail())] = true;
+				$existingEmails[strtolower($attendee->getEmail())] = true;
 			}
 		}
 
-		$addedNew = false;
-		foreach ($this->normalizeEmails($emails) as $email => $_) {
-			if (!isset($attendeeEmails[$email])) {
-				$newAttendee = new EventAttendee;
-				$newAttendee->setEmail($email);
-				$attendees[] = $newAttendee;
-				$addedNew = true;
-			}
-		}
+		$newEmails = array_keys(array_diff_key($this->normalizeEmails($emails), $existingEmails));
+		$newAttendees = array_map(
+			static fn(string $email) => new EventAttendee(['email' => $email]),
+			$newEmails,
+		);
 
-		if (!$addedNew) {
+		if (!$newAttendees) {
 			return;
 		}
 
-		$event->setAttendees($attendees);
-		$updateOptions = ['sendUpdates' => $sendNotification ? 'all' : 'none'];
-		$this->service->events->update($this->calendarId, $eventId, $event, $updateOptions);
+		$merged = array_merge($existing, $newAttendees);
+
+		if (!$sendNotifications || !$existing) {
+			$event->setAttendees($merged);
+			$this->service->events->update($this->calendarId, $eventId, $event, ['sendUpdates' => $sendNotifications ? 'all' : 'none']);
+			return;
+		}
+
+		// Google's sendUpdates=all would notify everyone on the event. Detach the old crowd silently,
+		// invite the newcomers alone (so only they receive the email), then restore the full list silently.
+		// try/finally guarantees the restore even if the invitation step fails.
+		$update = fn(string $sendUpdates) => $this->service->events->update($this->calendarId, $eventId, $event, ['sendUpdates' => $sendUpdates]);
+
+		$event->setAttendees([]);
+		$update('none');
+		try {
+			$event->setAttendees($newAttendees);
+			$update('all');
+		} finally {
+			$event->setAttendees($merged);
+			$update('none');
+		}
 	}
 
 
 	/** @param  string[]  $emails */
-	public function removeAttendees(string $eventId, array $emails, bool $sendNotification = false): void
+	public function removeAttendees(string $eventId, array $emails): void
 	{
 		$event = $this->service->events->get($this->calendarId, $eventId);
 		$emails = $this->normalizeEmails($emails);
@@ -140,7 +155,7 @@ class Manager
 		}
 
 		$event->setAttendees($attendees);
-		$updateOptions = ['sendUpdates' => $sendNotification ? 'all' : 'none'];
+		$updateOptions = ['sendUpdates' => 'none'];
 		$this->service->events->update($this->calendarId, $eventId, $event, $updateOptions);
 	}
 
