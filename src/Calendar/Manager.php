@@ -166,6 +166,16 @@ class Manager
 	}
 
 
+	public function updateDescription(string $eventId, string $description): void
+	{
+		$patch = new GoogleEvent;
+		$patch->setDescription($description);
+		$this->service->events->patch($this->calendarId, $eventId, $patch, [
+			'sendUpdates' => 'none',
+		]);
+	}
+
+
 	/**
 	 * @param  string[]  $emails
 	 * @return array<string, true>
