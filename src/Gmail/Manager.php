@@ -455,7 +455,7 @@ class Manager
 		$result = [];
 		foreach (self::walkParts($part) as $p) {
 			$body = $p->getBody();
-			$attachmentId = $body->getAttachmentId();
+			$attachmentId = $body?->getAttachmentId();
 			$filename = $p->getFilename();
 			if (!$attachmentId || !$filename) {
 				continue;
@@ -506,7 +506,7 @@ class Manager
 	{
 		$plain = $html = null;
 		foreach (self::walkParts($part) as $p) {
-			$data = $p->getBody()->getData();
+			$data = $p->getBody()?->getData();
 			if (!$data) {
 				continue;
 			}

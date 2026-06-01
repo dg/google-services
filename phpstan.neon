@@ -14,3 +14,11 @@ parameters:
 		-
 			identifier: method.unused
 			path: src/McpToolCallGuard.php
+
+		-	# Google's generated stub types MessagePart::getBody() as non-nullable,
+			# but with format=metadata it returns null at runtime (see commit ec082e0).
+			# The ?-> operator is the correct guard; removing it reintroduces a fatal Error.
+			identifier: nullsafe.neverNull
+			message: '#^Using nullsafe method call on non-nullable type Google\\Service\\Gmail\\MessagePartBody\. Use -> instead\.$#'
+			path: src/Gmail/Manager.php
+			count: 2
