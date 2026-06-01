@@ -60,12 +60,12 @@ test('paths must be plain filenames (no separators, no `.`/`..`, no null byte)',
 		'..',                            // path traversal
 		'/etc/passwd',                   // unix root (`/`)
 		'C:/Windows/file.ini',           // drive + `/`
-		'C:\\Windows\\file.ini',         // drive + `\`
-		'\\\\server\\share\\x',          // UNC (`\`)
+		'C:\Windows\file.ini',         // drive + `\`
+		'\\\server\share\x',          // UNC (`\`)
 		'file:///etc/passwd',            // protocol (`/`)
 		'../escape.txt',                 // leading `..` (also `/`)
 		'sub/foo.txt',                   // subdir (`/`)
-		'sub\\foo.txt',                  // subdir (`\`)
+		'sub\foo.txt',                  // subdir (`\`)
 		"foo\0bar.txt",                  // null byte
 	];
 	foreach ($bad as $path) {

@@ -27,7 +27,7 @@ A PHP library wrapping Google APIs (Gmail, Calendar, Meet) with a more ergonomic
 - Works against the authenticated user (`me`)
 - MIME building delegated to `Nette\Mail\Message` (handles RFC 2047 encoding, line folding, CRLF sanitation)
 - Reply header derivation: subject / To / Cc / In-Reply-To / References pulled from the last thread message via a metadata-only fetch; the user's own address is stripped from Cc
-- Total raw attachment size capped at 18 MB (Gmail's 25 MB encoded-message limit minus base64 overhead) — enforced in `baseMail`, so library callers are protected even if they bypass `McpTools::validateAttachments`
+- Total raw attachment size capped at 18 MB (Gmail's 25 MB encoded-message limit minus base64 overhead) — enforced in `createMessage`/`createReplyMessage` (via the `MaxAttachmentBytes` constant), so library callers are protected even if they bypass `McpTools::validateAttachments`
 - Attachment downloads via `users.messages.attachments.get`; MIME types come straight from the Gmail payload
 
 **Calendar\Manager (`src/Calendar/Manager.php`)**
@@ -75,7 +75,7 @@ A PHP library wrapping Google APIs (Gmail, Calendar, Meet) with a more ergonomic
 - Provides server-level `instructions` covering: untrusted-content warning (the `untrustedContent: true` flag), current send-enabled state, default draft workflow, and tool ordering hints
 - Single-user / personal scope: tokens live on the local filesystem; not suitable for shared / multi-user deployment without rewriting the auth layer
 
-**`demo/.mcp.json`** — example host configuration. Mirrors the env-var pattern used by `Pohoda-Mcp/.mcp.json`. Drop `GOOGLE_ALLOW_SEND` (or set it to anything other than `"1"`) for read-only / draft-only mode.
+**`demo/.mcp.json`** — example host configuration. Drop `GOOGLE_ALLOW_SEND` (or set it to anything other than `"1"`) for read-only / draft-only mode.
 
 ### OAuth2 Flow
 
@@ -102,19 +102,21 @@ The `demo/` directory contains working examples:
 
 ## Dependencies
 
+Exact version constraints live in `composer.json`; this list is about what each package is for.
+
 - PHP 8.2 - 8.5
-- `google/apiclient` ^2.18 - Official Google API client library
-- `mcp/sdk` ^0.5.0 - PHP MCP SDK (server, transport, attribute-based tool discovery)
-- `nette/mail` ^4.1 - MIME message building (RFC 2047 encoding, line folding, CRLF sanitation)
-- `nette/utils` ^4.1 - filesystem helpers, AssertionException
-- `symfony/finder` ^7.0 || ^8.0 - used by tool discovery
+- `google/apiclient` - Official Google API client library
+- `mcp/sdk` - PHP MCP SDK (server, transport, attribute-based tool discovery)
+- `nette/mail` - MIME message building (RFC 2047 encoding, line folding, CRLF sanitation)
+- `nette/utils` - filesystem helpers, AssertionException
+- `symfony/finder` - used by tool discovery
 - Autoloading via classmap of `src/` directory
 
 ### Dev Dependencies
 
-- `phpstan/phpstan` ^2.1 - Static analysis (level 8)
-- `nette/phpstan-rules` ^1.0 - Additional PHPStan rules
-- `nette/tester` ^2.6 - Test runner
+- `phpstan/phpstan` + `phpstan/extension-installer` - Static analysis (level 8)
+- `nette/phpstan-rules` - Additional PHPStan rules
+- `nette/tester` - Test runner
 
 ## Common Tasks
 
@@ -130,7 +132,7 @@ php demo/authenticate.php
 
 # Run the Gmail MCP server (stdio)
 php server.php                          # uses ./demo/tokens
-php server.php /path/to/token-dir       # custom token directory
+GOOGLE_TOKEN_DIR=/path/to/token-dir php server.php   # custom token directory
 
 # Run tests
 vendor/bin/tester tests -s

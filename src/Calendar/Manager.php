@@ -16,7 +16,7 @@ class Manager
 
 	public function __construct(
 		Google\Client $client,
-		private string $calendarId = self::PrimaryCalendar,
+		private readonly string $calendarId = self::PrimaryCalendar,
 	) {
 		$this->service = new Calendar($client);
 	}
@@ -184,7 +184,7 @@ class Manager
 	{
 		$res = [];
 		foreach ($emails as $email) {
-			$email = strtolower(trim((string) $email));
+			$email = strtolower(trim($email));
 			if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 				trigger_error("Invalid email address: $email", E_USER_WARNING);
 				continue;

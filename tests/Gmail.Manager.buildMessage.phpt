@@ -99,7 +99,7 @@ test('invalid recipient email is rejected by Nette validators', function () use 
 });
 
 
-test('missing attachment file throws Gmail\\Exception (caught by safe())', function () use ($build) {
+test('missing attachment file throws Gmail\Exception (caught by safe())', function () use ($build) {
 	// buildMessage pre-checks the file via filesize() so an oversize file can't be slurped
 	// into RAM before the cap throws; the missing-file branch reports through Gmail\Exception.
 	Assert::exception(

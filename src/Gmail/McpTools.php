@@ -68,8 +68,8 @@ class McpTools
 	 *   is enforced; symlinks pointing outside the dir are rejected.
 	 */
 	public function __construct(
-		private \Closure $managerFactory,
-		private bool $allowSend = false,
+		private readonly \Closure $managerFactory,
+		private readonly bool $allowSend = false,
 		?string $filesDir = null,
 	) {
 		if ($filesDir !== null) {
@@ -719,7 +719,7 @@ class McpTools
 		if (is_array($errors) && $errors) {
 			$first = $errors[0];
 			if (isset($first['message'])) {
-				return (string) $first['message'];
+				return $first['message'];
 			}
 		}
 		return $e->getMessage();

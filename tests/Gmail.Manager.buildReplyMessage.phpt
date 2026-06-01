@@ -12,9 +12,10 @@ require __DIR__ . '/bootstrap.php';
 function makeManagerWithThread(string $myAddress, Thread $thread): Manager
 {
 	// anonymous subclass skips the Gmail client and returns the precanned thread
-	$manager = new class($thread) extends Manager {
-		public function __construct(public Thread $stubThread)
-		{
+	$manager = new class ($thread) extends Manager {
+		public function __construct(
+			public Thread $stubThread,
+		) {
 		}
 
 
@@ -65,8 +66,8 @@ test('CRLF in incoming subject is sanitised on the reply', function () use ($bui
 		sender: new Recipient('them@example.com'),
 	);
 	$manager = makeManagerWithThread('me@example.com', $thread);
-	/** @var Nette\Mail\Message $mail */
 	$mail = $build->invoke($manager, 't1', 'reply body', []);
+	\assert($mail instanceof Nette\Mail\Message);
 	$raw = $mail->generateMessage();
 
 	// "Re: " prefix added; CR/LF collapsed to a single space inside the Subject value
@@ -124,7 +125,7 @@ test('In-Reply-To and References headers are wired when available', function () 
 });
 
 
-test('empty thread is rejected with Gmail\\Exception', function () use ($build) {
+test('empty thread is rejected with Gmail\Exception', function () use ($build) {
 	$thread = new Thread('empty-id', []);
 	$manager = makeManagerWithThread('me@example.com', $thread);
 	Assert::exception(

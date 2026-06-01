@@ -18,8 +18,8 @@ class Manager
 
 
 	public function __construct(
-		private Gmail $service,
-		private string $userId = 'me',
+		private readonly Gmail $service,
+		private readonly string $userId = 'me',
 	) {
 	}
 
