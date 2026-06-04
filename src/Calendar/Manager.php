@@ -166,6 +166,79 @@ class Manager
 	}
 
 
+	/**
+	 * Lists events ordered by start time, with recurring events expanded into single instances.
+	 * timeMin is inclusive, timeMax exclusive; pass null to leave a bound open. $query maps to
+	 * Google's free-text event search. Results are capped at $maxResults across all pages.
+	 *
+	 * @return list<GoogleEvent>
+	 */
+	public function getEvents(
+		?\DateTimeInterface $timeMin = null,
+		?\DateTimeInterface $timeMax = null,
+		?string $query = null,
+		?string $calendarId = null,
+		int $maxResults = 250,
+	): array
+	{
+		$params = [
+			'singleEvents' => true,
+			'orderBy' => 'startTime',
+			'maxResults' => min($maxResults, 2500),
+		];
+		if ($timeMin !== null) {
+			$params['timeMin'] = $timeMin->format(\DateTimeInterface::RFC3339);
+		}
+		if ($timeMax !== null) {
+			$params['timeMax'] = $timeMax->format(\DateTimeInterface::RFC3339);
+		}
+		if ($query !== null && trim($query) !== '') {
+			$params['q'] = $query;
+		}
+
+		$calendarId ??= $this->calendarId;
+		$events = [];
+		$pageToken = null;
+		do {
+			if ($pageToken !== null) {
+				$params['pageToken'] = $pageToken;
+			}
+			$response = $this->service->events->listEvents($calendarId, $params);
+			foreach ($response->getItems() as $event) {
+				$events[] = $event;
+				if (count($events) >= $maxResults) {
+					return $events;
+				}
+			}
+			$pageToken = $response->getNextPageToken();
+		} while ($pageToken !== null);
+
+		return $events;
+	}
+
+
+	/**
+	 * Lists the calendars the authenticated user can access (primary, shared, subscribed).
+	 *
+	 * @return list<Calendar\CalendarListEntry>
+	 */
+	public function getCalendars(): array
+	{
+		$calendars = [];
+		$pageToken = null;
+		do {
+			$params = $pageToken !== null ? ['pageToken' => $pageToken] : [];
+			$response = $this->service->calendarList->listCalendarList($params);
+			foreach ($response->getItems() as $entry) {
+				$calendars[] = $entry;
+			}
+			$pageToken = $response->getNextPageToken();
+		} while ($pageToken !== null);
+
+		return $calendars;
+	}
+
+
 	public function updateDescription(string $eventId, string $description): void
 	{
 		$patch = new GoogleEvent;

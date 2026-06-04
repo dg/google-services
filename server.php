@@ -7,6 +7,7 @@ require is_file(__DIR__ . '/vendor/autoload.php')
 	: __DIR__ . '/../../autoload.php';
 
 use DG\Google\Authenticator;
+use DG\Google\Calendar;
 use DG\Google\Gmail;
 use DG\Google\McpToolCallGuard;
 use Google\Service as GS;
@@ -19,13 +20,15 @@ $allowSend = getenv('GOOGLE_ALLOW_SEND') === '1';
 $filesDir = getenv('GOOGLE_FILES_DIR') ?: null;
 
 $authenticator = new Authenticator(
-	scopes: [GS\Gmail::GMAIL_MODIFY],
+	scopes: [GS\Gmail::GMAIL_MODIFY, GS\Calendar::CALENDAR_READONLY],
 	tokenDir: $tokenDir,
 );
 $gmailFactory = static fn() => new Gmail\Manager(new GS\Gmail($authenticator->authenticate()));
+$calendarFactory = static fn() => new Calendar\Manager($authenticator->authenticate());
 
 $container = new Mcp\Capability\Registry\Container;
 $container->set(Gmail\McpTools::class, new Gmail\McpTools($gmailFactory, $allowSend, $filesDir));
+$container->set(Calendar\McpTools::class, new Calendar\McpTools($calendarFactory));
 
 $sendStatus = $allowSend ? 'enabled' : 'disabled (set GOOGLE_ALLOW_SEND=1 to enable)';
 $filesStatus = $filesDir !== null
@@ -33,7 +36,7 @@ $filesStatus = $filesDir !== null
 	: 'not configured (set GOOGLE_FILES_DIR to a dedicated directory to enable attachment download/upload)';
 $instructions = <<<TEXT
 	Google Services MCP server (single-user, personal use; runs over stdio with locally-stored OAuth tokens).
-	Currently exposes Gmail tools. Calendar / Meet tools may be added in the future.
+	Exposes Gmail tools plus read-only Calendar tools (calendar_list_events, calendar_list_calendars). Meet tools may be added in the future.
 	Outbound send tools (gmail_send_draft, gmail_send_reply) are $sendStatus.
 	Filesystem sandbox for attachments (gmail_get_attachment, attachments[] in draft/send tools): $filesStatus.
 
@@ -60,7 +63,7 @@ $instructions = <<<TEXT
 // JSON-RPC -32603. setContainer() is still required: the builder hands the container to other
 // request handlers (e.g. completions), and ReferenceHandler needs it to resolve tool instances.
 $server = Server::builder()
-	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail)')
+	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail, Calendar)')
 	->setInstructions($instructions)
 	->setContainer($container)
 	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container)))

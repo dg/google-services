@@ -15,6 +15,8 @@ $names = array_keys($tools);
 sort($names);
 
 Assert::same([
+	'calendar_list_calendars',
+	'calendar_list_events',
 	'gmail_archive_thread',
 	'gmail_create_draft',
 	'gmail_create_draft_reply',
@@ -49,6 +51,18 @@ foreach ($tools as $name => $ref) {
 foreach ($tools as $name => $ref) {
 	Assert::truthy($ref->tool->title, "tool $name is missing a title");
 }
+
+Assert::same([
+	'readOnlyHint' => true,
+	'destructiveHint' => null,
+	'idempotentHint' => null,
+], $annotations['calendar_list_events']);
+
+Assert::same([
+	'readOnlyHint' => true,
+	'destructiveHint' => null,
+	'idempotentHint' => null,
+], $annotations['calendar_list_calendars']);
 
 Assert::same([
 	'readOnlyHint' => true,
@@ -140,3 +154,10 @@ Assert::exception(
 	ToolCallException::class,
 	'%A%GOOGLE_ALLOW_SEND=1%A%',
 );
+
+
+// Discovery only registers tools, it never invokes them — so a tool whose body calls a
+// non-existent Manager method passes discovery but crashes on first call. Guard the backing
+// methods of the read-only calendar tools, which previously referenced undefined methods.
+Assert::true(method_exists(DG\Google\Calendar\Manager::class, 'getEvents'));
+Assert::true(method_exists(DG\Google\Calendar\Manager::class, 'getCalendars'));
