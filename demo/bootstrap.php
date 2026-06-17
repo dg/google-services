@@ -11,6 +11,7 @@ function createAuthenticator(): DG\Google\Authenticator
 		Google\Service\Calendar::CALENDAR_READONLY,
 		Google\Service\Meet::MEETINGS_SPACE_CREATED,
 		Google\Service\Gmail::GMAIL_MODIFY,
+		Google\Service\Slides::PRESENTATIONS,
 		// ...
 	], __DIR__ . '/tokens');
 }
