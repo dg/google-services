@@ -1,6 +1,10 @@
 <?php declare(strict_types=1);
 
-require __DIR__ . '/vendor/autoload.php';
+// Works both as a standalone clone (./vendor) and when installed as a dependency
+// (vendor/dg/google-services/server.php -> the consuming project's vendor/autoload.php).
+require is_file(__DIR__ . '/vendor/autoload.php')
+	? __DIR__ . '/vendor/autoload.php'
+	: __DIR__ . '/../../autoload.php';
 
 use DG\Google\Authenticator;
 use DG\Google\Gmail;
