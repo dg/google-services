@@ -33,6 +33,15 @@ Assert::same([
 	'gmail_send_reply',
 	'gmail_unlabel_message',
 	'gmail_unlabel_thread',
+	'slides_add_slide',
+	'slides_delete_object',
+	'slides_duplicate_slide',
+	'slides_format_text',
+	'slides_get_presentation',
+	'slides_get_text_styles',
+	'slides_insert_text',
+	'slides_replace_all_text',
+	'slides_set_shape_text',
 ], $names);
 
 
@@ -156,8 +165,70 @@ Assert::exception(
 );
 
 
+Assert::same([
+	'readOnlyHint' => true,
+	'destructiveHint' => null,
+	'idempotentHint' => null,
+], $annotations['slides_get_presentation']);
+
+Assert::same([
+	'readOnlyHint' => true,
+	'destructiveHint' => null,
+	'idempotentHint' => null,
+], $annotations['slides_get_text_styles']);
+
+Assert::same([
+	'readOnlyHint' => false,
+	'destructiveHint' => false,
+	'idempotentHint' => null,
+], $annotations['slides_add_slide']);
+
+Assert::same([
+	'readOnlyHint' => false,
+	'destructiveHint' => true,
+	'idempotentHint' => true,
+], $annotations['slides_delete_object']);
+
+Assert::same([
+	'readOnlyHint' => false,
+	'destructiveHint' => true,
+	'idempotentHint' => null,
+], $annotations['slides_replace_all_text']);
+
+Assert::same([
+	'readOnlyHint' => false,
+	'destructiveHint' => true,
+	'idempotentHint' => true,
+], $annotations['slides_set_shape_text']);
+
+Assert::same([
+	'readOnlyHint' => false,
+	'destructiveHint' => false,
+	'idempotentHint' => true,
+], $annotations['slides_format_text']);
+
+
+// slides_add_slide constrains layout to the predefined set
+$schema = $tools['slides_add_slide']->tool->inputSchema;
+Assert::same(DG\Google\Slides\Manager::Layouts, $schema['properties']['layout']['enum']);
+
+
 // Discovery only registers tools, it never invokes them — so a tool whose body calls a
 // non-existent Manager method passes discovery but crashes on first call. Guard the backing
 // methods of the read-only calendar tools, which previously referenced undefined methods.
 Assert::true(method_exists(DG\Google\Calendar\Manager::class, 'getEvents'));
 Assert::true(method_exists(DG\Google\Calendar\Manager::class, 'getCalendars'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'getPresentation'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'getElementRuns'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'addSlide'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'duplicateSlide'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'deleteObject'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'insertText'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'replaceAllText'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'setShapeText'));
+Assert::true(method_exists(DG\Google\Slides\Manager::class, 'styleText'));
+
+// The read field mask must fetch the slide-level objectId (needed to target slides for
+// slides_duplicate_slide / slides_delete_object) — a refactor once dropped it, so
+// slides_get_presentation returned empty slide IDs.
+Assert::contains('slides(objectId', DG\Google\Slides\Manager::ContentFields);

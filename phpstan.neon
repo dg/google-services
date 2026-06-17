@@ -22,3 +22,33 @@ parameters:
 			message: '#^Using nullsafe method call on non-nullable type Google\\Service\\Gmail\\MessagePartBody\. Use -> instead\.$#'
 			path: src/Gmail/Manager.php
 			count: 2
+
+		# Slides text extraction (Manager + McpTools) walks Google's generated DTOs (Shape, Table,
+		# TextContent, TextRun, Placeholder, Page...). Their stubs type every getter as non-nullable,
+		# but at runtime any of them is null when that part is absent (a shape without text, a
+		# non-table element, a slide without notes, a paragraph-marker TextElement with no TextRun).
+		# The null guards are the correct runtime defense; PHPStan only flags them because it trusts
+		# the inaccurate PHPDoc. Scoped to the two Slides stub-traversal files.
+		-
+			identifier: nullsafe.neverNull
+			paths:
+				- src/Slides/Manager.php
+				- src/Slides/McpTools.php
+		-
+			identifier: nullCoalesce.expr
+			paths:
+				- src/Slides/Manager.php
+				- src/Slides/McpTools.php
+		-
+			identifier: identical.alwaysFalse
+			paths:
+				- src/Slides/Manager.php
+				- src/Slides/McpTools.php
+		-
+			identifier: notIdentical.alwaysTrue
+			paths:
+				- src/Slides/Manager.php
+				- src/Slides/McpTools.php
+		-
+			identifier: return.unusedType
+			path: src/Slides/Manager.php
