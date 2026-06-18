@@ -3,13 +3,10 @@
 namespace DG\Google\Gmail;
 
 use DG\Google\AuthException;
-use Google\Service\Exception as GoogleException;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
-use Nette\IOException;
-use Nette\Utils\AssertionException;
 use Nette\Utils\FileSystem;
 
 
@@ -194,29 +191,27 @@ class McpTools
 		?string $pageToken = null,
 	): array
 	{
-		return $this->safe(function () use ($query, $pageSize, $pageToken) {
-			if (trim($query) === '') {
-				throw new \InvalidArgumentException('query must not be empty.');
-			}
-			$page = $this->getManager()->searchThreads($query, $pageSize, $pageToken);
-			$threads = [];
-			foreach ($page['threads'] as $row) {
-				$threads[] = [
-					'threadId' => $row['threadId'],
-					'subject' => $row['subject'],
-					'sender' => self::recipient($row['sender']),
-					'date' => $row['date']->format(\DATE_ATOM),
-					'snippet' => $row['snippet'],
-					'messageCount' => $row['messageCount'],
-					'labelIds' => $row['labelIds'],
-				];
-			}
-			return [
-				'untrustedContent' => true,
-				'threads' => $threads,
-				'nextPageToken' => $page['nextPageToken'],
+		if (trim($query) === '') {
+			throw new \InvalidArgumentException('query must not be empty.');
+		}
+		$page = $this->getManager()->searchThreads($query, $pageSize, $pageToken);
+		$threads = [];
+		foreach ($page['threads'] as $row) {
+			$threads[] = [
+				'threadId' => $row['threadId'],
+				'subject' => $row['subject'],
+				'sender' => self::recipient($row['sender']),
+				'date' => $row['date']->format(\DATE_ATOM),
+				'snippet' => $row['snippet'],
+				'messageCount' => $row['messageCount'],
+				'labelIds' => $row['labelIds'],
 			];
-		});
+		}
+		return [
+			'untrustedContent' => true,
+			'threads' => $threads,
+			'nextPageToken' => $page['nextPageToken'],
+		];
 	}
 
 
@@ -254,38 +249,36 @@ class McpTools
 		int $maxMessages = 20,
 	): array
 	{
-		return $this->safe(function () use ($threadId, $includeHtml, $maxMessages) {
-			$thread = $this->getManager()->fetchThread($threadId);
-			$total = count($thread->messages);
-			$slice = $total > $maxMessages
-				? array_slice($thread->messages, -$maxMessages)
-				: $thread->messages;
+		$thread = $this->getManager()->fetchThread($threadId);
+		$total = count($thread->messages);
+		$slice = $total > $maxMessages
+			? array_slice($thread->messages, -$maxMessages)
+			: $thread->messages;
 
-			$messages = [];
-			foreach ($slice as $m) {
-				$messages[] = [
-					'id' => $m->id,
-					'date' => $m->date->format(\DATE_ATOM),
-					'sender' => self::recipient($m->sender),
-					'toRecipients' => array_map(self::recipient(...), $m->toRecipients),
-					'ccRecipients' => array_map(self::recipient(...), $m->ccRecipients),
-					'subject' => $m->subject,
-					'snippet' => $m->snippet,
-					'bodyAvailable' => self::bodyAvailable($m),
-					'plaintextBody' => $m->plaintextBody,
-					'htmlBody' => $includeHtml ? $m->htmlBody : null,
-					'labelIds' => $m->labelIds,
-					'attachments' => $m->attachments,
-				];
-			}
-			return [
-				'untrustedContent' => true,
-				'threadId' => $thread->id,
-				'totalMessageCount' => $total,
-				'truncated' => $total > $maxMessages,
-				'messages' => $messages,
+		$messages = [];
+		foreach ($slice as $m) {
+			$messages[] = [
+				'id' => $m->id,
+				'date' => $m->date->format(\DATE_ATOM),
+				'sender' => self::recipient($m->sender),
+				'toRecipients' => array_map(self::recipient(...), $m->toRecipients),
+				'ccRecipients' => array_map(self::recipient(...), $m->ccRecipients),
+				'subject' => $m->subject,
+				'snippet' => $m->snippet,
+				'bodyAvailable' => self::bodyAvailable($m),
+				'plaintextBody' => $m->plaintextBody,
+				'htmlBody' => $includeHtml ? $m->htmlBody : null,
+				'labelIds' => $m->labelIds,
+				'attachments' => $m->attachments,
 			];
-		});
+		}
+		return [
+			'untrustedContent' => true,
+			'threadId' => $thread->id,
+			'totalMessageCount' => $total,
+			'truncated' => $total > $maxMessages,
+			'messages' => $messages,
+		];
 	}
 
 
@@ -310,25 +303,23 @@ class McpTools
 	)]
 	public function listDrafts(string $query = ''): array
 	{
-		return $this->safe(function () use ($query) {
-			$rows = $this->getManager()->listDrafts($query);
-			$drafts = [];
-			foreach ($rows as $row) {
-				$drafts[] = [
-					'draftId' => $row['draftId'],
-					'messageId' => $row['messageId'],
-					'threadId' => $row['threadId'],
-					'subject' => $row['subject'],
-					'to' => $row['to'],
-					'date' => $row['date']->format(\DATE_ATOM),
-					'snippet' => $row['snippet'],
-				];
-			}
-			return [
-				'untrustedContent' => true,
-				'drafts' => $drafts,
+		$rows = $this->getManager()->listDrafts($query);
+		$drafts = [];
+		foreach ($rows as $row) {
+			$drafts[] = [
+				'draftId' => $row['draftId'],
+				'messageId' => $row['messageId'],
+				'threadId' => $row['threadId'],
+				'subject' => $row['subject'],
+				'to' => $row['to'],
+				'date' => $row['date']->format(\DATE_ATOM),
+				'snippet' => $row['snippet'],
 			];
-		});
+		}
+		return [
+			'untrustedContent' => true,
+			'drafts' => $drafts,
+		];
 	}
 
 
@@ -347,26 +338,24 @@ class McpTools
 	)]
 	public function listAttachments(string $threadId): array
 	{
-		return $this->safe(function () use ($threadId) {
-			$thread = $this->getManager()->fetchThread($threadId);
-			$attachments = [];
-			foreach ($thread->messages as $m) {
-				foreach ($m->attachments as $att) {
-					$attachments[] = [
-						'messageId' => $m->id,
-						'attachmentId' => $att['attachmentId'],
-						'filename' => $att['filename'],
-						'mimeType' => $att['mimeType'],
-						'sizeBytes' => $att['sizeBytes'],
-					];
-				}
+		$thread = $this->getManager()->fetchThread($threadId);
+		$attachments = [];
+		foreach ($thread->messages as $m) {
+			foreach ($m->attachments as $att) {
+				$attachments[] = [
+					'messageId' => $m->id,
+					'attachmentId' => $att['attachmentId'],
+					'filename' => $att['filename'],
+					'mimeType' => $att['mimeType'],
+					'sizeBytes' => $att['sizeBytes'],
+				];
 			}
-			return [
-				'untrustedContent' => true,
-				'threadId' => $thread->id,
-				'attachments' => $attachments,
-			];
-		});
+		}
+		return [
+			'untrustedContent' => true,
+			'threadId' => $thread->id,
+			'attachments' => $attachments,
+		];
 	}
 
 
@@ -395,12 +384,10 @@ class McpTools
 	public function getAttachment(string $messageId, string $attachmentId): array
 	{
 		$filesDir = $this->requireFilesDir();
-		return $this->safe(function () use ($messageId, $attachmentId, $filesDir) {
-			$bytes = $this->getManager()->getAttachment($messageId, $attachmentId);
-			$savePath = $filesDir . DIRECTORY_SEPARATOR . self::generateAttachmentFilename($messageId, $attachmentId, $bytes);
-			FileSystem::write($savePath, $bytes);
-			return ['savedPath' => $savePath, 'bytes' => strlen($bytes)];
-		});
+		$bytes = $this->getManager()->getAttachment($messageId, $attachmentId);
+		$savePath = $filesDir . DIRECTORY_SEPARATOR . self::generateAttachmentFilename($messageId, $attachmentId, $bytes);
+		FileSystem::write($savePath, $bytes);
+		return ['savedPath' => $savePath, 'bytes' => strlen($bytes)];
 	}
 
 
@@ -426,11 +413,9 @@ class McpTools
 		array $attachments = [],
 	): array
 	{
-		return $this->safe(function () use ($threadId, $body, $attachments) {
-			$mgr = $this->getManager();
-			$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments));
-			return ['draftId' => $mgr->saveDraft($mail, $threadId)];
-		});
+		$mgr = $this->getManager();
+		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments));
+		return ['draftId' => $mgr->saveDraft($mail, $threadId)];
 	}
 
 
@@ -463,10 +448,8 @@ class McpTools
 		array $attachments = [],
 	): array
 	{
-		return $this->safe(function () use ($to, $subject, $body, $cc, $bcc, $attachments) {
-			$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments));
-			return ['draftId' => $this->getManager()->saveDraft($mail)];
-		});
+		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments));
+		return ['draftId' => $this->getManager()->saveDraft($mail)];
 	}
 
 
@@ -488,9 +471,7 @@ class McpTools
 	public function sendDraft(string $draftId): array
 	{
 		$this->requireSendAllowed();
-		return $this->safe(fn() => [
-			'messageId' => $this->getManager()->sendDraft($draftId),
-		]);
+		return ['messageId' => $this->getManager()->sendDraft($draftId)];
 	}
 
 
@@ -508,10 +489,8 @@ class McpTools
 	)]
 	public function deleteDraft(string $draftId): array
 	{
-		return $this->safe(function () use ($draftId) {
-			$this->getManager()->deleteDraft($draftId);
-			return ['deleted' => $draftId];
-		});
+		$this->getManager()->deleteDraft($draftId);
+		return ['deleted' => $draftId];
 	}
 
 
@@ -541,9 +520,7 @@ class McpTools
 	): array
 	{
 		$this->requireSendAllowed();
-		return $this->safe(fn() => [
-			'messageId' => $this->getManager()->sendReply($threadId, $body, $this->validateAttachments($attachments)),
-		]);
+		return ['messageId' => $this->getManager()->sendReply($threadId, $body, $this->validateAttachments($attachments))];
 	}
 
 
@@ -563,10 +540,8 @@ class McpTools
 	)]
 	public function archiveThread(string $threadId): array
 	{
-		return $this->safe(function () use ($threadId) {
-			$this->getManager()->modifyThreadLabels($threadId, remove: ['INBOX']);
-			return ['archived' => $threadId];
-		});
+		$this->getManager()->modifyThreadLabels($threadId, remove: ['INBOX']);
+		return ['archived' => $threadId];
 	}
 
 
@@ -583,7 +558,7 @@ class McpTools
 	)]
 	public function listLabels(): array
 	{
-		return $this->safe(fn() => $this->getManager()->listLabels());
+		return $this->getManager()->listLabels();
 	}
 
 
@@ -605,11 +580,9 @@ class McpTools
 		array $labelIds,
 	): array
 	{
-		return $this->safe(function () use ($threadId, $labelIds) {
-			$ids = self::validateLabelIds($labelIds);
-			$this->getManager()->modifyThreadLabels($threadId, add: $ids);
-			return ['threadId' => $threadId, 'added' => $ids];
-		});
+		$ids = self::validateLabelIds($labelIds);
+		$this->getManager()->modifyThreadLabels($threadId, add: $ids);
+		return ['threadId' => $threadId, 'added' => $ids];
 	}
 
 
@@ -631,11 +604,9 @@ class McpTools
 		array $labelIds,
 	): array
 	{
-		return $this->safe(function () use ($threadId, $labelIds) {
-			$ids = self::validateLabelIds($labelIds);
-			$this->getManager()->modifyThreadLabels($threadId, remove: $ids);
-			return ['threadId' => $threadId, 'removed' => $ids];
-		});
+		$ids = self::validateLabelIds($labelIds);
+		$this->getManager()->modifyThreadLabels($threadId, remove: $ids);
+		return ['threadId' => $threadId, 'removed' => $ids];
 	}
 
 
@@ -659,11 +630,9 @@ class McpTools
 		array $labelIds,
 	): array
 	{
-		return $this->safe(function () use ($messageId, $labelIds) {
-			$ids = self::validateLabelIds($labelIds);
-			$this->getManager()->modifyMessageLabels($messageId, add: $ids);
-			return ['messageId' => $messageId, 'added' => $ids];
-		});
+		$ids = self::validateLabelIds($labelIds);
+		$this->getManager()->modifyMessageLabels($messageId, add: $ids);
+		return ['messageId' => $messageId, 'added' => $ids];
 	}
 
 
@@ -685,44 +654,9 @@ class McpTools
 		array $labelIds,
 	): array
 	{
-		return $this->safe(function () use ($messageId, $labelIds) {
-			$ids = self::validateLabelIds($labelIds);
-			$this->getManager()->modifyMessageLabels($messageId, remove: $ids);
-			return ['messageId' => $messageId, 'removed' => $ids];
-		});
-	}
-
-
-	/**
-	 * Wraps a tool body and converts Google API failures into ToolCallException
-	 * (the MCP SDK turns those into a CallToolResult with isError=true so Claude can self-correct).
-	 *
-	 * @template T of array
-	 * @param \Closure(): T $fn
-	 * @return T
-	 */
-	private function safe(\Closure $fn): array
-	{
-		try {
-			return $fn();
-		} catch (GoogleException $e) {
-			throw new ToolCallException('Gmail API error: ' . self::extractGoogleError($e), 0, $e);
-		} catch (Exception | \InvalidArgumentException | AssertionException | IOException $e) {
-			throw new ToolCallException($e->getMessage(), 0, $e);
-		}
-	}
-
-
-	private static function extractGoogleError(GoogleException $e): string
-	{
-		$errors = $e->getErrors();
-		if (is_array($errors) && $errors) {
-			$first = $errors[0];
-			if (isset($first['message'])) {
-				return $first['message'];
-			}
-		}
-		return $e->getMessage();
+		$ids = self::validateLabelIds($labelIds);
+		$this->getManager()->modifyMessageLabels($messageId, remove: $ids);
+		return ['messageId' => $messageId, 'removed' => $ids];
 	}
 
 

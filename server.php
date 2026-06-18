@@ -8,7 +8,9 @@ require is_file(__DIR__ . '/vendor/autoload.php')
 
 use DG\Google\Authenticator;
 use DG\Google\Gmail;
+use DG\Google\McpToolCallGuard;
 use Google\Service as GS;
+use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
@@ -52,10 +54,16 @@ $instructions = <<<TEXT
 	  - Use gmail_list_labels to discover label IDs before gmail_label_thread/gmail_unlabel_thread.
 	TEXT;
 
+// Every tool body's errors are converted to ToolCallException centrally by McpToolCallGuard,
+// which decorates the SDK's default ReferenceHandler — so the McpTools methods stay free of
+// per-call try/catch and an unexpected \Throwable can't crash the stdio transport as an opaque
+// JSON-RPC -32603. setContainer() is still required: the builder hands the container to other
+// request handlers (e.g. completions), and ReferenceHandler needs it to resolve tool instances.
 $server = Server::builder()
 	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail)')
 	->setInstructions($instructions)
 	->setContainer($container)
+	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container)))
 	->setDiscovery(__DIR__ . '/src', ['.'], namePatterns: ['*Tools.php'])
 	->build();
 

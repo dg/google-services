@@ -3,3 +3,14 @@ parameters:
 
 	paths:
 		- src
+
+	ignoreErrors:
+		# McpToolCallGuard catches exceptions the decorated SDK handler really throws at runtime, but
+		# its interface under-declares @throws, so PHPStan flags the catches (and extractGoogleError,
+		# called only from one) as dead. False positives, scoped to this file.
+		-
+			identifier: catch.neverThrown
+			path: src/McpToolCallGuard.php
+		-
+			identifier: method.unused
+			path: src/McpToolCallGuard.php
