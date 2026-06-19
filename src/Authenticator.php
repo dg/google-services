@@ -87,6 +87,69 @@ class Authenticator
 	}
 
 
+	/**
+	 * Non-sensitive snapshot of the stored token's lifecycle metadata, for diagnosing auth
+	 * failures in a long-running server. Reads token.json directly (ground truth on disk) and
+	 * never returns the access or refresh token values themselves. `locallyExpired` mirrors
+	 * Google\Client::isAccessTokenExpired() math (created + expires_in - 30 < now), so a log
+	 * entry reveals whether a 401 hit while the token still looked valid locally (points at
+	 * revocation / clock skew / a token the lib refused to refresh) or only after it expired
+	 * (points at a refresh that never ran). `memoryMatchesDisk` compares the live client's
+	 * in-memory token against disk: `false` means the client refreshed/replaced its token without
+	 * persisting it, so a request can be rejected with a value this disk snapshot can't see.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function getTokenDiagnostics(): array
+	{
+		$tokenPath = $this->tokenDir . '/token.json';
+		$now = time();
+		$diag = [
+			'now' => date(\DATE_ATOM, $now),
+			'scopes' => $this->scopes,
+			'tokenFileExists' => file_exists($tokenPath),
+		];
+		if (!$diag['tokenFileExists']) {
+			return $diag;
+		}
+
+		$raw = @file_get_contents($tokenPath);
+		$token = $raw === false ? null : json_decode($raw, true);
+		if (!is_array($token)) {
+			$diag['tokenFileReadable'] = false;
+			return $diag;
+		}
+
+		$created = isset($token['created']) ? (int) $token['created'] : null;
+		$expiresIn = isset($token['expires_in']) ? (int) $token['expires_in'] : null;
+		$diag['tokenFileReadable'] = true;
+		$diag['hasAccessToken'] = isset($token['access_token']);
+		$diag['hasRefreshToken'] = isset($token['refresh_token']);
+		$diag['created'] = $created;
+		$diag['expiresIn'] = $expiresIn;
+		$diag['createdAt'] = $created !== null ? date(\DATE_ATOM, $created) : null;
+		$diag['expiresAt'] = $created !== null && $expiresIn !== null ? date(\DATE_ATOM, $created + $expiresIn) : null;
+		$diag['ageSeconds'] = $created !== null ? $now - $created : null;
+		$diag['locallyExpired'] = $created === null || $expiresIn === null
+			? true
+			: ($created + $expiresIn - 30) < $now;
+
+		// Compare the live client's in-memory token with disk. A mismatch means the lib refreshed
+		// the access token in this process but never wrote it back, so the rejected request used a
+		// token that none of the disk fields above describe.
+		$memory = $this->client->getAccessToken();
+		if (is_array($memory) && $memory !== []) {
+			$memCreated = isset($memory['created']) ? (int) $memory['created'] : null;
+			$diag['memoryCreated'] = $memCreated;
+			$diag['memoryCreatedAt'] = $memCreated !== null ? date(\DATE_ATOM, $memCreated) : null;
+			$diag['memoryMatchesDisk'] = isset($memory['access_token'], $token['access_token'])
+				&& hash_equals((string) $token['access_token'], (string) $memory['access_token']);
+		}
+
+		return $diag;
+	}
+
+
 	public function getAuthUrl(): string
 	{
 		return $this->client->createAuthUrl();

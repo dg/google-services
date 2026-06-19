@@ -21,7 +21,8 @@ use Nette\Utils\AssertionException;
  * Conversion rules (first match wins):
  *   - ToolCallException: already shaped by the tool itself (auth via getManager, the send-gate, the
  *     attachment sandbox) — rethrown unchanged.
- *   - Google\Service\Exception: it becomes "Google API error: <upstream message>".
+ *   - Google\Service\Exception: the diagnostic $onApiError hook fires (token-snapshot logging),
+ *     then it becomes "Google API error: <upstream message>".
  *   - InvalidArgumentException / Nette AssertionException: caller-input errors are self-explanatory,
  *     so the clean message is forwarded without debug noise.
  *   - any other \Throwable (domain Exception, TypeError, "method on null", a bare RuntimeException):
@@ -29,8 +30,14 @@ use Nette\Utils\AssertionException;
  */
 final class McpToolCallGuard implements ReferenceHandlerInterface
 {
+	/**
+	 * @param ?\Closure(GoogleException): void $onApiError  Diagnostic hook invoked with every Google
+	 *   API exception before it is converted, used by the server to log a token snapshot when an auth
+	 *   failure (401 "Invalid Credentials") occurs in a long-running process. Null disables it.
+	 */
 	public function __construct(
 		private readonly ReferenceHandlerInterface $handler,
+		private readonly ?\Closure $onApiError = null,
 	) {
 	}
 
@@ -48,6 +55,9 @@ final class McpToolCallGuard implements ReferenceHandlerInterface
 			// Already shaped by the tool (auth/getManager, send-gate, sandbox) — pass through.
 			throw $e;
 		} catch (GoogleException $e) {
+			if ($this->onApiError !== null) {
+				($this->onApiError)($e);
+			}
 			throw new ToolCallException('Google API error: ' . self::extractGoogleError($e), 0, $e);
 		} catch (\InvalidArgumentException | AssertionException $e) {
 			throw new ToolCallException($e->getMessage(), 0, $e);

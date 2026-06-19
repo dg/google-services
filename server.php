@@ -35,6 +35,36 @@ $gmailFactory = static fn() => new Gmail\Manager(new GS\Gmail($authenticator->au
 $calendarFactory = static fn() => new Calendar\Manager($authenticator->authenticate());
 $slidesFactory = static fn() => new Slides\Manager($authenticator->authenticate());
 
+// Diagnostic hook: when a call fails authentication (401 "Invalid
+// Credentials") in this long-running process, append a token snapshot to auth-failures.log. The
+// library is expected to refresh the access token on its own per request, so a recurrence here is
+// unexpected; the snapshot (locallyExpired? hasRefreshToken? token age) is what we need to find the
+// real cause.
+$logDir = getenv('GOOGLE_LOG_DIR') ?: $tokenDir;
+$onApiError = static function (GS\Exception $e) use ($authenticator, $logDir): void {
+	$message = $e->getMessage();
+	// 403 is deliberately NOT treated as an auth failure by status code alone: Gmail/Calendar
+	// return 403 for rateLimitExceeded/quotaExceeded, which would flood this log with noise
+	// unrelated to the token bug. Only a genuine 401 or an auth-specific message string counts.
+	$isAuthFailure = $e->getCode() === 401
+		|| stripos($message, 'invalid credentials') !== false
+		|| stripos($message, 'invalid_grant') !== false
+		|| stripos($message, 'unauthorized') !== false;
+	if (!$isAuthFailure) {
+		return;
+	}
+	$entry = json_encode([
+		'time' => date(\DATE_ATOM),
+		'httpCode' => $e->getCode(),
+		'error' => $message,
+		'token' => $authenticator->getTokenDiagnostics(),
+	], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+	if ($entry === false) {
+		$entry = '{"error":"failed to encode auth diagnostics"}';
+	}
+	@file_put_contents($logDir . '/auth-failures.log', $entry . "\n", FILE_APPEND | LOCK_EX);
+};
+
 $container = new Mcp\Capability\Registry\Container;
 $container->set(Gmail\McpTools::class, new Gmail\McpTools($gmailFactory, $allowSend, $filesDir));
 $container->set(Calendar\McpTools::class, new Calendar\McpTools($calendarFactory));
@@ -105,7 +135,7 @@ $server = Server::builder()
 	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail, Calendar)')
 	->setInstructions($instructions)
 	->setContainer($container)
-	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container)))
+	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container), $onApiError))
 	->setDiscovery(__DIR__ . '/src', ['.'], namePatterns: ['*Tools.php'])
 	->build();
 
