@@ -22,25 +22,8 @@ $authenticator = new Authenticator(
 );
 $gmailFactory = static fn() => new Gmail\Manager(new GS\Gmail($authenticator->authenticate()));
 
-$container = new class ([Gmail\McpTools::class => new Gmail\McpTools($gmailFactory, $allowSend, $filesDir)]) implements Psr\Container\ContainerInterface {
-	/** @param array<class-string, object> $instances */
-	public function __construct(
-		private array $instances,
-	) {
-	}
-
-
-	public function get(string $id): object
-	{
-		return $this->instances[$id] ?? throw new RuntimeException("No instance for $id");
-	}
-
-
-	public function has(string $id): bool
-	{
-		return isset($this->instances[$id]);
-	}
-};
+$container = new Mcp\Capability\Registry\Container;
+$container->set(Gmail\McpTools::class, new Gmail\McpTools($gmailFactory, $allowSend, $filesDir));
 
 $sendStatus = $allowSend ? 'enabled' : 'disabled (set GOOGLE_ALLOW_SEND=1 to enable)';
 $filesStatus = $filesDir !== null
@@ -73,7 +56,7 @@ $server = Server::builder()
 	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail)')
 	->setInstructions($instructions)
 	->setContainer($container)
-	->setDiscovery(__DIR__ . '/src', ['.'])
+	->setDiscovery(__DIR__ . '/src', ['.'], namePatterns: ['*Tools.php'])
 	->build();
 
 $server->run(new StdioTransport);
