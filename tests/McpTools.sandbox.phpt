@@ -23,11 +23,19 @@ function callValidateAttachments(McpTools $tools, array $attachments): mixed
 }
 
 
-test('constructor refuses a non-existent files dir', function () {
+test('constructor does NOT validate the files dir (must not crash the transport at wiring time)', function () {
+	// A non-existent dir must not throw here — that would crash the stdio server before the MCP
+	// handshake. Construction succeeds; the error is deferred to the first attachment-tool call.
+	Assert::noError(fn() => new McpTools(static fn() => throw new RuntimeException, false, '/no/such/dir/ever'));
+});
+
+
+test('a configured-but-non-existent files dir surfaces as a ToolCallException at call time', function () {
+	$tools = new McpTools(static fn() => throw new RuntimeException, false, '/no/such/dir/ever');
 	Assert::exception(
-		fn() => new McpTools(static fn() => throw new RuntimeException, false, '/no/such/dir/ever'),
-		InvalidArgumentException::class,
-		'%A%does not point to an existing directory%A%',
+		fn() => $tools->getAttachment('msg', 'att'),
+		ToolCallException::class,
+		'%A%non-existent directory%A%',
 	);
 });
 

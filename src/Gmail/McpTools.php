@@ -43,7 +43,6 @@ class McpTools
 
 
 	private ?Manager $manager = null;
-	private ?string $filesDir = null;
 
 
 	/**
@@ -62,20 +61,17 @@ class McpTools
 	 *   GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
 	 *   and any draft/send call with a non-empty attachments[]) refuses with a clear error.
 	 *   When set, paths are resolved relative to this directory and `realpath` containment
-	 *   is enforced; symlinks pointing outside the dir are rejected.
+	 *   is enforced; symlinks pointing outside the dir are rejected. The path is intentionally
+	 *   NOT validated here: a missing/invalid directory must not crash the stdio transport at
+	 *   wiring time (before McpToolCallGuard is in place) — it surfaces as a ToolCallException
+	 *   from requireFilesDir() at call time instead, so the server still boots and reports the
+	 *   problem diagnosably over JSON-RPC.
 	 */
 	public function __construct(
 		private readonly \Closure $managerFactory,
 		private readonly bool $allowSend = false,
-		?string $filesDir = null,
+		private readonly ?string $filesDir = null,
 	) {
-		if ($filesDir !== null) {
-			$resolved = realpath($filesDir);
-			if ($resolved === false || !is_dir($resolved)) {
-				throw new \InvalidArgumentException("GOOGLE_FILES_DIR does not point to an existing directory: $filesDir");
-			}
-			$this->filesDir = $resolved;
-		}
 	}
 
 
@@ -106,7 +102,12 @@ class McpTools
 	}
 
 
-	/** Returns the resolved sandbox directory; throws when not configured. */
+	/**
+	 * Returns the resolved sandbox directory; throws a ToolCallException when not configured
+	 * or when the configured path does not exist. Validation lives here (not in the constructor)
+	 * so a misconfigured GOOGLE_FILES_DIR degrades to a per-call error the host can display,
+	 * rather than crashing the whole server before the MCP handshake completes.
+	 */
 	private function requireFilesDir(): string
 	{
 		if ($this->filesDir === null) {
@@ -114,7 +115,13 @@ class McpTools
 				'Filesystem sandbox is not configured. Set GOOGLE_FILES_DIR in the .mcp.json env to a dedicated directory before using attachment tools.',
 			);
 		}
-		return $this->filesDir;
+		$resolved = realpath($this->filesDir);
+		if ($resolved === false || !is_dir($resolved)) {
+			throw new ToolCallException(
+				"GOOGLE_FILES_DIR points to a non-existent directory: {$this->filesDir}. Create it or fix the path in the .mcp.json env.",
+			);
+		}
+		return $resolved;
 	}
 
 
