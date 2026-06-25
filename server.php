@@ -20,6 +20,13 @@ $tokenDir = getenv('GOOGLE_TOKEN_DIR') ?: __DIR__ . '/demo/tokens';
 $allowSend = getenv('GOOGLE_ALLOW_SEND') === '1';
 $filesDir = getenv('GOOGLE_FILES_DIR') ?: null;
 
+// A missing GOOGLE_FILES_DIR is non-fatal by design (attachment tools degrade to a per-call
+// ToolCallException), but warn on stderr so the misconfiguration is immediately visible in the
+// host's MCP log instead of only surfacing when an attachment tool is first called.
+if ($filesDir !== null && !is_dir($filesDir)) {
+	fwrite(STDERR, "[google-services] WARNING: GOOGLE_FILES_DIR does not exist: $filesDir — attachment tools will be unavailable until it is created.\n");
+}
+
 $authenticator = new Authenticator(
 	scopes: [GS\Gmail::GMAIL_MODIFY, GS\Calendar::CALENDAR_READONLY, GS\Slides::PRESENTATIONS],
 	tokenDir: $tokenDir,
@@ -34,9 +41,11 @@ $container->set(Calendar\McpTools::class, new Calendar\McpTools($calendarFactory
 $container->set(Slides\McpTools::class, new Slides\McpTools($slidesFactory));
 
 $sendStatus = $allowSend ? 'enabled' : 'disabled (set GOOGLE_ALLOW_SEND=1 to enable)';
-$filesStatus = $filesDir !== null
-	? "configured at $filesDir"
-	: 'not configured (set GOOGLE_FILES_DIR to a dedicated directory to enable attachment download/upload)';
+$filesStatus = match (true) {
+	$filesDir === null => 'not configured (set GOOGLE_FILES_DIR to a dedicated directory to enable attachment download/upload)',
+	!is_dir($filesDir) => "MISCONFIGURED: GOOGLE_FILES_DIR points to a non-existent directory ($filesDir); attachment tools will fail until it is created",
+	default => "configured at $filesDir",
+};
 $instructions = <<<TEXT
 	Google Services MCP server (single-user, personal use; runs over stdio with locally-stored OAuth tokens).
 	Exposes Gmail tools, read-only Calendar tools (calendar_list_events, calendar_list_calendars) and
