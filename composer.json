@@ -1,6 +1,15 @@
 {
 	"name": "dg/google-services",
-    "require": {
+	"description": "Ergonomic PHP wrapper for Google APIs (Gmail, Calendar, Meet, Slides) plus a single-user MCP server exposing them as tools.",
+	"keywords": ["google", "gmail", "calendar", "slides", "meet", "mcp", "api"],
+	"type": "library",
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		}
+	],
+	"require": {
 		"php": "8.2 - 8.5",
         "google/apiclient": "^2.18",
         "mcp/sdk": "^0.6.0",
