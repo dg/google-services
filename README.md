@@ -41,6 +41,7 @@ Configuration is via environment variables (an MCP host passes them through its 
 | --- | --- |
 | `GOOGLE_TOKEN_DIR` | OAuth token directory (default `./demo/tokens`) |
 | `GOOGLE_ALLOW_SEND` | `"1"` enables the outbound `gmail_send_*` tools; otherwise they refuse the call |
+| `GOOGLE_ALLOW_CALENDAR_WRITE` | `"1"` enables `calendar_create_event`; otherwise it refuses the call |
 | `GOOGLE_FILES_DIR` | Attachment sandbox directory (required for attachment download/upload) |
 
 The server is **single-user by design**: tokens live on the local filesystem and are not suitable for a shared or multi-user deployment without rewriting the auth layer.

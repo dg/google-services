@@ -22,8 +22,9 @@ class Manager
 	}
 
 
-	public function createEvent(Event $event): GoogleEvent
+	public function createEvent(Event $event, ?string $calendarId = null): GoogleEvent
 	{
+		$calendarId ??= $this->calendarId;
 		$blueprint = new GoogleEvent;
 		$blueprint->setSummary($event->summary);
 		$blueprint->setStart(new Calendar\EventDateTime([
@@ -60,15 +61,15 @@ class Manager
 			$blueprint->setRecurrence([$rrule]);
 		}
 
-		$res = $this->service->events->insert($this->calendarId, $blueprint);
+		$res = $this->service->events->insert($calendarId, $blueprint);
 		if ($event->createMeeting) {
-			return $this->createMeeting($res->getId());
+			return $this->createMeeting($res->getId(), $calendarId);
 		}
 		return $res;
 	}
 
 
-	private function createMeeting(string $eventId): GoogleEvent
+	private function createMeeting(string $eventId, string $calendarId): GoogleEvent
 	{
 		$patch = new GoogleEvent;
 		$patch->setConferenceData(new Calendar\ConferenceData([
@@ -82,14 +83,20 @@ class Manager
 			'conferenceDataVersion' => 1,
 		];
 
-		return $this->service->events->patch($this->calendarId, $eventId, $patch, $patchOptions);
+		return $this->service->events->patch($calendarId, $eventId, $patch, $patchOptions);
 	}
 
 
 	/** @param  string[]  $emails */
-	public function addAttendees(string $eventId, array $emails, bool $sendNotifications = false): void
+	public function addAttendees(
+		string $eventId,
+		array $emails,
+		bool $sendNotifications = false,
+		?string $calendarId = null,
+	): void
 	{
-		$event = $this->service->events->get($this->calendarId, $eventId);
+		$calendarId ??= $this->calendarId;
+		$event = $this->service->events->get($calendarId, $eventId);
 		$existing = $event->getAttendees() ?? [];
 		$existingEmails = [];
 		foreach ($existing as $attendee) {
@@ -112,14 +119,14 @@ class Manager
 
 		if (!$sendNotifications || !$existing) {
 			$event->setAttendees($merged);
-			$this->service->events->update($this->calendarId, $eventId, $event, ['sendUpdates' => $sendNotifications ? 'all' : 'none']);
+			$this->service->events->update($calendarId, $eventId, $event, ['sendUpdates' => $sendNotifications ? 'all' : 'none']);
 			return;
 		}
 
 		// Google's sendUpdates=all would notify everyone on the event. Detach the old crowd silently,
 		// invite the newcomers alone (so only they receive the email), then restore the full list silently.
 		// try/finally guarantees the restore even if the invitation step fails.
-		$update = fn(string $sendUpdates) => $this->service->events->update($this->calendarId, $eventId, $event, ['sendUpdates' => $sendUpdates]);
+		$update = fn(string $sendUpdates) => $this->service->events->update($calendarId, $eventId, $event, ['sendUpdates' => $sendUpdates]);
 
 		$event->setAttendees([]);
 		$update('none');
@@ -134,9 +141,10 @@ class Manager
 
 
 	/** @param  string[]  $emails */
-	public function removeAttendees(string $eventId, array $emails): void
+	public function removeAttendees(string $eventId, array $emails, ?string $calendarId = null): void
 	{
-		$event = $this->service->events->get($this->calendarId, $eventId);
+		$calendarId ??= $this->calendarId;
+		$event = $this->service->events->get($calendarId, $eventId);
 		$emails = $this->normalizeEmails($emails);
 		$attendees = $event->getAttendees() ?? [];
 		$removedAny = false;
@@ -156,13 +164,13 @@ class Manager
 
 		$event->setAttendees($attendees);
 		$updateOptions = ['sendUpdates' => 'none'];
-		$this->service->events->update($this->calendarId, $eventId, $event, $updateOptions);
+		$this->service->events->update($calendarId, $eventId, $event, $updateOptions);
 	}
 
 
-	public function getEvent(string $eventId): GoogleEvent
+	public function getEvent(string $eventId, ?string $calendarId = null): GoogleEvent
 	{
-		return $this->service->events->get($this->calendarId, $eventId);
+		return $this->service->events->get($calendarId ?? $this->calendarId, $eventId);
 	}
 
 
@@ -239,11 +247,11 @@ class Manager
 	}
 
 
-	public function updateDescription(string $eventId, string $description): void
+	public function updateDescription(string $eventId, string $description, ?string $calendarId = null): void
 	{
 		$patch = new GoogleEvent;
 		$patch->setDescription($description);
-		$this->service->events->patch($this->calendarId, $eventId, $patch, [
+		$this->service->events->patch($calendarId ?? $this->calendarId, $eventId, $patch, [
 			'sendUpdates' => 'none',
 		]);
 	}

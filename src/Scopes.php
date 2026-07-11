@@ -15,10 +15,15 @@ use Google\Service\Slides;
  */
 final class Scopes
 {
-	/** Scopes needed by the tools the MCP server currently exposes (Gmail, read-only Calendar, Slides). */
+	/**
+	 * Scopes needed by the tools the MCP server currently exposes (Gmail, Calendar, Slides). Calendar
+	 * uses the full read-write scope because calendar_create_event writes; the actual writes are still
+	 * gated at the tool layer by GOOGLE_ALLOW_CALENDAR_WRITE, so granting the scope does not by itself
+	 * let the model change the calendar.
+	 */
 	public const McpServer = [
 		Gmail::GMAIL_MODIFY,
-		Calendar::CALENDAR_READONLY,
+		Calendar::CALENDAR,
 		Slides::PRESENTATIONS,
 	];
 }

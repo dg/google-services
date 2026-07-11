@@ -19,6 +19,7 @@ use Mcp\Server\Transport\StdioTransport;
 
 $tokenDir = getenv('GOOGLE_TOKEN_DIR') ?: __DIR__ . '/demo/tokens';
 $allowSend = getenv('GOOGLE_ALLOW_SEND') === '1';
+$allowCalendarWrite = getenv('GOOGLE_ALLOW_CALENDAR_WRITE') === '1';
 $filesDir = getenv('GOOGLE_FILES_DIR') ?: null;
 
 // A missing GOOGLE_FILES_DIR is non-fatal by design (attachment tools degrade to a per-call
@@ -38,10 +39,11 @@ $slidesFactory = static fn() => new Slides\Manager($authenticator->authenticate(
 
 $container = new Mcp\Capability\Registry\Container;
 $container->set(Gmail\McpTools::class, new Gmail\McpTools($gmailFactory, $allowSend, $filesDir));
-$container->set(Calendar\McpTools::class, new Calendar\McpTools($calendarFactory));
+$container->set(Calendar\McpTools::class, new Calendar\McpTools($calendarFactory, $allowCalendarWrite));
 $container->set(Slides\McpTools::class, new Slides\McpTools($slidesFactory));
 
 $sendStatus = $allowSend ? 'enabled' : 'disabled (set GOOGLE_ALLOW_SEND=1 to enable)';
+$calendarWriteStatus = $allowCalendarWrite ? 'enabled' : 'disabled (set GOOGLE_ALLOW_CALENDAR_WRITE=1 to enable)';
 $filesStatus = match (true) {
 	$filesDir === null => 'not configured (set GOOGLE_FILES_DIR to a dedicated directory to enable attachment download/upload)',
 	!is_dir($filesDir) => "MISCONFIGURED: GOOGLE_FILES_DIR points to a non-existent directory ($filesDir); attachment tools will fail until it is created",
@@ -49,12 +51,14 @@ $filesStatus = match (true) {
 };
 $instructions = <<<TEXT
 	Google Services MCP server (single-user, personal use; runs over stdio with locally-stored OAuth tokens).
-	Exposes Gmail tools, read-only Calendar tools (calendar_list_events, calendar_list_calendars) and
+	Exposes Gmail tools, Calendar tools (calendar_list_events, calendar_list_calendars, and
+	calendar_create_event when enabled) and
 	Google Slides tools (slides_get_presentation, slides_get_text_styles, slides_add_slide,
 	slides_add_text_box, slides_duplicate_slide, slides_move_slide, slides_set_slide_visibility,
 	slides_delete_object, slides_insert_text, slides_set_shape_text, slides_format_text,
 	slides_replace_all_text). Meet tools may be added in the future.
 	Outbound send tools (gmail_send_draft, gmail_send_reply) are $sendStatus.
+	Calendar write (calendar_create_event) is $calendarWriteStatus.
 	Filesystem sandbox for attachments (gmail_get_attachment, attachments[] in draft/send tools): $filesStatus.
 
 	SECURITY — UNTRUSTED CONTENT:

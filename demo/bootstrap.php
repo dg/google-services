@@ -10,7 +10,6 @@ function createAuthenticator(): DG\Google\Authenticator
 	return new DG\Google\Authenticator([
 		...DG\Google\Scopes::McpServer,
 		Google\Service\Drive::DRIVE,
-		Google\Service\Calendar::CALENDAR_EVENTS,
 		Google\Service\Meet::MEETINGS_SPACE_CREATED,
 		// ...
 	], __DIR__ . '/tokens');

@@ -6,6 +6,7 @@ use DG\Google\ManagerResolver;
 use Google\Service\Calendar\Event as GoogleEvent;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 
 
@@ -20,9 +21,14 @@ class McpTools
 	 * MCP handshake.
 	 *
 	 * @param \Closure(): Manager $managerFactory
+	 * @param bool $allowWrite  Calendar writes (calendar_create_event) are gated behind this flag,
+	 *   mirroring Gmail's send gate. Default off; the operator opts in via env
+	 *   GOOGLE_ALLOW_CALENDAR_WRITE=1. When off, the write tools still appear in tools/list but reject
+	 *   the call with a clear ToolCallException, so a prompt-injected model can't quietly create events.
 	 */
 	public function __construct(
 		private \Closure $managerFactory,
+		private readonly bool $allowWrite = false,
 	) {
 	}
 
@@ -30,6 +36,16 @@ class McpTools
 	private function getManager(): Manager
 	{
 		return $this->manager ??= ManagerResolver::resolve($this->managerFactory);
+	}
+
+
+	private function requireWriteAllowed(): void
+	{
+		if (!$this->allowWrite) {
+			throw new ToolCallException(
+				'Calendar write is disabled in this server config. Set GOOGLE_ALLOW_CALENDAR_WRITE=1 in the .mcp.json env to enable calendar_create_event.',
+			);
+		}
 	}
 
 
@@ -114,6 +130,97 @@ class McpTools
 			'untrustedContent' => true,
 			'calendars' => $calendars,
 		];
+	}
+
+
+	/**
+	 * Create a calendar event. Times accept ISO 8601 / RFC 3339; include an offset (e.g.
+	 * "2026-06-01T10:00:00+02:00") or pass timeZone (IANA, e.g. "Europe/Prague") to disambiguate a
+	 * bare local time. Optionally attach a Google Meet link, invite attendees, add a reminder, and
+	 * repeat the event daily. Guests cannot invite others or see the guest list (set server-side).
+	 *
+	 * Writing is opt-in: this tool refuses the call when the server was started without
+	 * GOOGLE_ALLOW_CALENDAR_WRITE=1.
+	 *
+	 * @param string $summary  Event title
+	 * @param string $start  Start time (ISO 8601)
+	 * @param string $end  End time (ISO 8601)
+	 * @param ?string $timeZone  IANA time zone applied to start/end when they carry no offset; null = server default
+	 * @param ?string $location  Optional location
+	 * @param ?string $description  Optional description
+	 * @param list<string> $attendees  Attendee email addresses to invite
+	 * @param bool $createMeeting  Attach a Google Meet conference link
+	 * @param int $reminderMinutes  Popup reminder this many minutes before start; 0 = none
+	 * @param int $repeatCount  Number of daily occurrences (1 = single event)
+	 * @param int $repeatIntervalDays  Days between occurrences when repeatCount > 1
+	 * @param string $calendarId  Target calendar ("primary" or an ID from calendar_list_calendars)
+	 * @return array{id: string, htmlLink: ?string, hangoutLink: ?string, event: array<string, mixed>}
+	 */
+	#[McpTool(
+		name: 'calendar_create_event',
+		title: 'Create calendar event',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, openWorldHint: true),
+	)]
+	public function createEvent(
+		string $summary,
+		string $start,
+		string $end,
+		?string $timeZone = null,
+		?string $location = null,
+		?string $description = null,
+		#[Schema(items: ['type' => 'string', 'format' => 'email'])]
+		array $attendees = [],
+		bool $createMeeting = false,
+		#[Schema(minimum: 0)]
+		int $reminderMinutes = 0,
+		#[Schema(minimum: 1)]
+		int $repeatCount = 1,
+		#[Schema(minimum: 1)]
+		int $repeatIntervalDays = 1,
+		string $calendarId = 'primary',
+	): array
+	{
+		$this->requireWriteAllowed();
+		if (trim($summary) === '') {
+			throw new \InvalidArgumentException('summary must not be empty.');
+		}
+
+		$tz = $timeZone !== null ? new \DateTimeZone($timeZone) : null;
+		$event = new Event($summary, self::parseRequiredTime($start, 'start', $tz), self::parseRequiredTime($end, 'end', $tz));
+		$event->location = $location;
+		$event->description = $description;
+		$event->createMeeting = $createMeeting;
+		$event->repeatCount = max(1, $repeatCount);
+		$event->repeatIntervalDays = max(1, $repeatIntervalDays);
+		if ($reminderMinutes > 0) {
+			// Manager derives EventReminder.minutes from now->modify($reminder); "+N minutes" yields +N,
+			// i.e. a popup N minutes before the event.
+			$event->reminder = "+$reminderMinutes minutes";
+		}
+
+		$mgr = $this->getManager();
+		$created = $mgr->createEvent($event, $calendarId);
+		if ($attendees !== []) {
+			$mgr->addAttendees((string) $created->getId(), $attendees, sendNotifications: true, calendarId: $calendarId);
+			$created = $mgr->getEvent((string) $created->getId(), $calendarId);
+		}
+
+		return [
+			'id' => (string) $created->getId(),
+			'htmlLink' => $created->getHtmlLink(),
+			'hangoutLink' => $created->getHangoutLink(),
+			'event' => self::event($created),
+		];
+	}
+
+
+	private static function parseRequiredTime(string $value, string $param, ?\DateTimeZone $tz): \DateTimeImmutable
+	{
+		try {
+			return new \DateTimeImmutable($value, $tz);
+		} catch (\Throwable $e) {
+			throw new \InvalidArgumentException("Invalid $param datetime: $value", 0, $e);
+		}
 	}
 
 
