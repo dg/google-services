@@ -103,7 +103,7 @@ $instructions = <<<TEXT
 // JSON-RPC -32603. setContainer() is still required: the builder hands the container to other
 // request handlers (e.g. completions), and ReferenceHandler needs it to resolve tool instances.
 $server = Server::builder()
-	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail, Calendar)')
+	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail, Calendar, Slides)')
 	->setInstructions($instructions)
 	->setContainer($container)
 	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container)))
