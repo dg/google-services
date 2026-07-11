@@ -26,6 +26,30 @@ class Authenticator
 		$client->setScopes($this->scopes);
 		$client->setAccessType('offline'); // Required for refresh token
 		$client->setPrompt('select_account consent');
+
+		// In a long-running process the library refreshes the access token transparently on the
+		// request that finds it expired. But Google's DEFAULT token_callback replaces the in-memory
+		// token with just {access_token, expires_in, created} — it drops the refresh_token and never
+		// writes anything to disk. The NEXT expiry then sees no refresh_token in memory, so authorize()
+		// attaches the stale access token as-is and every subsequent request 401s "Invalid Credentials"
+		// until the process restarts. Our callback keeps the refresh_token and scope and persists the
+		// refreshed token, so both survive across refreshes and match the disk snapshot.
+		$client->setTokenCallback(function (string $cacheKey, string $accessToken) use ($client): void {
+			$current = $client->getAccessToken();
+			$token = [
+				'access_token' => $accessToken,
+				'expires_in' => 3600, // Google default; the callback only receives the token string
+				'created' => time(),
+			];
+			foreach (['refresh_token', 'scope'] as $carry) {
+				if (isset($current[$carry])) {
+					$token[$carry] = $current[$carry];
+				}
+			}
+			$client->setAccessToken($token);
+			$this->saveToken($token);
+		});
+
 		return $client;
 	}
 
