@@ -1,3 +1,7 @@
 /vendor
 /composer.lock
 /demo/tokens/*
+
+# Attachment sandbox: keep the directory, ignore its contents
+/demo/files/*
+!/demo/files/.gitkeep
