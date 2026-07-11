@@ -7,6 +7,16 @@ use Google;
 
 class Authenticator
 {
+	/**
+	 * Broader Google scopes that subsume a required one, so a wider grant still satisfies the check.
+	 * Keyed by the required scope URL → the broader scope URLs that cover it.
+	 */
+	private const BroaderScopes = [
+		'https://www.googleapis.com/auth/gmail.modify' => ['https://mail.google.com/'],
+		'https://www.googleapis.com/auth/calendar.readonly' => ['https://www.googleapis.com/auth/calendar'],
+		'https://www.googleapis.com/auth/presentations' => ['https://www.googleapis.com/auth/drive'],
+	];
+
 	private ?Google\Client $client = null;
 
 
@@ -98,6 +108,7 @@ class Authenticator
 				// Treat as a re-auth state, not a TypeError from setAccessToken(null).
 				throw new AuthException("Malformed token file (not a JSON object): $tokenPath. Re-authorization is required.");
 			}
+			$this->assertScopesGranted($accessToken);
 			$client->setAccessToken($accessToken);
 		}
 
@@ -139,6 +150,56 @@ class Authenticator
 		}
 
 		return $client;
+	}
+
+
+	/**
+	 * Fails fast when the stored token was authorized for fewer scopes than the server now requires
+	 * (e.g. a Slides/Meet scope was added to the code but demo/authenticate.php was never re-run).
+	 * Without this the missing scope only surfaces later as a confusing 403 from whichever API needs
+	 * it. Google stores the granted scopes in the token's space-separated `scope` field; a token
+	 * predating that field (no `scope`) is left unchecked rather than rejected.
+	 *
+	 * @param array<string, mixed> $token
+	 */
+	private function assertScopesGranted(array $token): void
+	{
+		if (!isset($token['scope']) || !is_string($token['scope'])) {
+			return;
+		}
+		$granted = array_filter(explode(' ', $token['scope']), static fn(string $s): bool => $s !== '');
+		$missing = array_values(array_filter(
+			$this->scopes,
+			static fn(string $required): bool => !self::scopeSatisfied($required, $granted),
+		));
+		if ($missing !== []) {
+			throw new AuthException(
+				'The stored token is missing required scope(s): ' . implode(', ', $missing)
+				. '. The scope list changed since the token was issued; re-run `php demo/authenticate.php` to re-authorize.',
+			);
+		}
+	}
+
+
+	/**
+	 * A required scope is satisfied by an exact grant or by a broader scope that subsumes it (Google
+	 * doesn't expand a broad grant into its narrower members in the token's `scope` field). Without
+	 * this, a token granted e.g. full `https://mail.google.com/` would be wrongly reported as missing
+	 * `gmail.modify` and force a needless re-authorization.
+	 *
+	 * @param string[] $granted
+	 */
+	private static function scopeSatisfied(string $required, array $granted): bool
+	{
+		if (in_array($required, $granted, true)) {
+			return true;
+		}
+		foreach (self::BroaderScopes[$required] ?? [] as $broader) {
+			if (in_array($broader, $granted, true)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 
