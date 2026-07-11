@@ -5,13 +5,13 @@ require __DIR__ . '/../vendor/autoload.php';
 
 function createAuthenticator(): DG\Google\Authenticator
 {
+	// Spread the server's required scopes so the token this demo mints always covers what the MCP
+	// server needs (see DG\Google\Scopes), then add the extra scopes the demo scripts here use.
 	return new DG\Google\Authenticator([
+		...DG\Google\Scopes::McpServer,
 		Google\Service\Drive::DRIVE,
 		Google\Service\Calendar::CALENDAR_EVENTS,
-		Google\Service\Calendar::CALENDAR_READONLY,
 		Google\Service\Meet::MEETINGS_SPACE_CREATED,
-		Google\Service\Gmail::GMAIL_MODIFY,
-		Google\Service\Slides::PRESENTATIONS,
 		// ...
 	], __DIR__ . '/tokens');
 }

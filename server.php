@@ -10,6 +10,7 @@ use DG\Google\Authenticator;
 use DG\Google\Calendar;
 use DG\Google\Gmail;
 use DG\Google\McpToolCallGuard;
+use DG\Google\Scopes;
 use DG\Google\Slides;
 use Google\Service as GS;
 use Mcp\Capability\Registry\ReferenceHandler;
@@ -28,7 +29,7 @@ if ($filesDir !== null && !is_dir($filesDir)) {
 }
 
 $authenticator = new Authenticator(
-	scopes: [GS\Gmail::GMAIL_MODIFY, GS\Calendar::CALENDAR_READONLY, GS\Slides::PRESENTATIONS],
+	scopes: Scopes::McpServer,
 	tokenDir: $tokenDir,
 );
 $gmailFactory = static fn() => new Gmail\Manager(new GS\Gmail($authenticator->authenticate()));
