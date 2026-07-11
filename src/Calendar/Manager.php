@@ -27,14 +27,8 @@ class Manager
 		$calendarId ??= $this->calendarId;
 		$blueprint = new GoogleEvent;
 		$blueprint->setSummary($event->summary);
-		$blueprint->setStart(new Calendar\EventDateTime([
-			'dateTime' => $event->start->format($event->start::RFC3339),
-			'timeZone' => $event->start->getTimezone()->getName(),
-		]));
-		$blueprint->setEnd(new Calendar\EventDateTime([
-			'dateTime' => $event->end->format($event->end::RFC3339),
-			'timeZone' => $event->end->getTimezone()->getName(),
-		]));
+		$blueprint->setStart(self::eventDateTime($event->start));
+		$blueprint->setEnd(self::eventDateTime($event->end));
 		if ($event->location !== null) {
 			$blueprint->setLocation($event->location);
 		}
@@ -66,6 +60,24 @@ class Manager
 			return $this->createMeeting($res->getId(), $calendarId);
 		}
 		return $res;
+	}
+
+
+	/**
+	 * Builds an EventDateTime whose `dateTime` carries the offset (RFC 3339). `timeZone` is set only
+	 * when the datetime's zone is a real IANA name: a datetime built from an offset string reports its
+	 * zone as a numeric offset ("+02:00"), which Calendar's `timeZone` field rejects (it wants an IANA
+	 * identifier and needs one for recurrence). In that case the offset already lives in `dateTime`, so
+	 * `timeZone` is omitted rather than filled with an invalid value.
+	 */
+	private static function eventDateTime(\DateTimeInterface $dt): Calendar\EventDateTime
+	{
+		$data = ['dateTime' => $dt->format(\DateTimeInterface::RFC3339)];
+		$zone = $dt->getTimezone()->getName();
+		if (!preg_match('~^[+-]\d{2}:\d{2}$~', $zone)) {
+			$data['timeZone'] = $zone;
+		}
+		return new Calendar\EventDateTime($data);
 	}
 
 

@@ -294,6 +294,10 @@ class McpTools
 
 	private static function parseRequiredTime(string $value, string $param, ?\DateTimeZone $tz): \DateTimeImmutable
 	{
+		if (trim($value) === '') {
+			// new DateTimeImmutable('') silently yields "now"; a required time must be given explicitly.
+			throw new \InvalidArgumentException("$param must not be empty.");
+		}
 		try {
 			return new \DateTimeImmutable($value, $tz);
 		} catch (\Throwable $e) {
