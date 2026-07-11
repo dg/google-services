@@ -20,21 +20,26 @@ $page = new Page(['pageElements' => [
 	['objectId' => 'body', 'shape' => [
 		'text' => ['textElements' => [['textRun' => ['content' => 'Body text']]]],
 	]],
+	// an empty BODY placeholder, as on a freshly added slide — must stay addressable
+	['objectId' => 'emptybody', 'shape' => ['placeholder' => ['type' => 'BODY'], 'text' => ['textElements' => []]]],
+	// an empty non-placeholder decoration — must be dropped
 	['objectId' => 'empty', 'shape' => ['text' => ['textElements' => []]]],
 ]]);
 
 
-test('full mode returns object IDs, isTitle and text; empty shapes are skipped', function () use ($elements, $page) {
+test('full mode keeps text, placeholderType, and empty placeholders; drops empty decorations', function () use ($elements, $page) {
 	Assert::same([
-		['objectId' => 'title', 'isTitle' => true, 'text' => 'My title'],
+		['objectId' => 'title', 'isTitle' => true, 'placeholderType' => 'TITLE', 'text' => 'My title'],
 		['objectId' => 'body', 'isTitle' => false, 'text' => 'Body text'],
+		['objectId' => 'emptybody', 'isTitle' => false, 'placeholderType' => 'BODY', 'text' => ''],
 	], $elements($page, false));
 });
 
 
-test('outline mode omits the text field but keeps object IDs and isTitle', function () use ($elements, $page) {
+test('outline mode omits text but keeps object IDs, isTitle and placeholderType', function () use ($elements, $page) {
 	Assert::same([
-		['objectId' => 'title', 'isTitle' => true],
+		['objectId' => 'title', 'isTitle' => true, 'placeholderType' => 'TITLE'],
 		['objectId' => 'body', 'isTitle' => false],
+		['objectId' => 'emptybody', 'isTitle' => false, 'placeholderType' => 'BODY'],
 	], $elements($page, true));
 });

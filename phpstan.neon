@@ -44,6 +44,11 @@ parameters:
 			paths:
 				- src/Slides/Manager.php
 				- src/Slides/McpTools.php
+		-	# elements(): `$placeholderType === null` folds into a boolean-and PHPStan reads as
+			# always-false, because the stub types Shape::getPlaceholder()->getType() non-nullable
+			# while it is null at runtime for a non-placeholder element. Same stub inaccuracy as above.
+			identifier: booleanAnd.alwaysFalse
+			path: src/Slides/McpTools.php
 		-
 			identifier: notIdentical.alwaysTrue
 			paths:

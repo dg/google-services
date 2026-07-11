@@ -56,7 +56,10 @@ class McpTools
 	 *
 	 * Each returned slide carries its slideNumber, object ID and text-bearing elements (object IDs
 	 * and, unless outline=true, text — group children flattened in) so you can target an element
-	 * with slides_format_text / slides_insert_text. includeNotes=true adds each slide's speaker-notes
+	 * with slides_format_text / slides_insert_text. Placeholder shapes (title/body/subtitle/...) are
+	 * returned even when EMPTY, each with its `placeholderType`, so a freshly added slide's empty
+	 * placeholders are addressable — write into them with slides_insert_text / slides_set_shape_text.
+	 * includeNotes=true adds each slide's speaker-notes
 	 * shape (object ID + text); the speaker-notes object ID is returned even when the notes are
 	 * empty (text ""), so you can write into empty notes with slides_insert_text or
 	 * slides_set_shape_text. `slideCount` always reports the TOTAL slide count even when the
@@ -71,7 +74,7 @@ class McpTools
 	 * @param bool $includeNotes  Include speaker-notes elements per slide
 	 * @param bool $outline  Omit element/notes text, returning only object IDs + isTitle (cheap map of a large deck)
 	 * @param list<int> $slideNumbers  1-based slide positions to include; empty = all slides
-	 * @return array{untrustedContent: true, presentationId: string, title: ?string, revisionId: ?string, slideCount: int, outline: bool, slides: list<array{slideNumber: int, objectId: string, elements: list<array{objectId: string, isTitle: bool, text?: string}>, notes?: list<array{objectId: string, text?: string}>}>}
+	 * @return array{untrustedContent: true, presentationId: string, title: ?string, revisionId: ?string, slideCount: int, outline: bool, slides: list<array{slideNumber: int, objectId: string, elements: list<array{objectId: string, isTitle: bool, placeholderType?: string, text?: string}>, notes?: list<array{objectId: string, text?: string}>}>}
 	 */
 	#[McpTool(
 		name: 'slides_get_presentation',
@@ -402,21 +405,27 @@ class McpTools
 
 
 	/**
-	 * @return list<array{objectId: string, isTitle: bool, text?: string}>
+	 * @return list<array{objectId: string, isTitle: bool, placeholderType?: string, text?: string}>
 	 */
 	private static function elements(Page $slide, bool $outline): array
 	{
 		$result = [];
 		foreach (Manager::walkElements($slide->getPageElements() ?? []) as $element) {
+			$placeholderType = $element->getShape()?->getPlaceholder()?->getType();
 			$text = trim(Manager::extractText($element));
-			if ($text === '') {
+			// Keep empty PLACEHOLDERS: their object IDs are what the "add a slide then fill it" workflow
+			// writes into (same class of bug as empty speaker notes). Skip only empty non-placeholder
+			// decorations (lines, images, empty free text boxes).
+			if ($text === '' && $placeholderType === null) {
 				continue;
 			}
-			$shape = $element->getShape();
 			$entry = [
 				'objectId' => (string) $element->getObjectId(),
-				'isTitle' => $shape?->getPlaceholder()?->getType() === 'TITLE',
+				'isTitle' => $placeholderType === 'TITLE',
 			];
+			if ($placeholderType !== null) {
+				$entry['placeholderType'] = $placeholderType;
+			}
 			if (!$outline) {
 				$entry['text'] = $text;
 			}
