@@ -223,6 +223,7 @@ class McpTools
 	 * @param string $objectId  Object ID of the target shape
 	 * @param string $text  Text to insert (newline = new paragraph; \v = soft line break)
 	 * @param int $insertionIndex  Zero-based insertion offset in UTF-16 code units
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: the edit is rejected if the deck changed since
 	 * @return array{objectId: string}
 	 */
 	#[McpTool(
@@ -236,9 +237,10 @@ class McpTools
 		string $text,
 		#[Schema(minimum: 0)]
 		int $insertionIndex = 0,
+		?string $revisionId = null,
 	): array
 	{
-		$this->getManager()->insertText($presentationId, $objectId, self::decodeSoftBreaks($text), $insertionIndex);
+		$this->getManager()->insertText($presentationId, $objectId, self::decodeSoftBreaks($text), $insertionIndex, $revisionId);
 		return ['objectId' => $objectId];
 	}
 
@@ -268,6 +270,7 @@ class McpTools
 	 * @param string $objectId  Object ID of the target shape
 	 * @param string $text  The new text (newline = new paragraph; \v = soft line break; empty = clear)
 	 * @param list<array{substring: string, bold?: bool, italic?: bool, underline?: bool, fontSizePt?: float, color?: string, occurrence?: int}> $styles  Inline styles to apply by literal substring after setting the text; empty = inherit (no styling)
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: the edit is rejected if the deck changed since — recommended here, as the diff is computed against a prior read
 	 * @return array{objectId: string, styles?: list<array{substring: string, occurrences: int}>}
 	 */
 	#[McpTool(
@@ -293,9 +296,10 @@ class McpTools
 			],
 		])]
 		array $styles = [],
+		?string $revisionId = null,
 	): array
 	{
-		$report = $this->getManager()->setShapeText($presentationId, $objectId, self::decodeSoftBreaks($text), $styles);
+		$report = $this->getManager()->setShapeText($presentationId, $objectId, self::decodeSoftBreaks($text), $styles, $revisionId);
 		$result = ['objectId' => $objectId];
 		if ($report !== []) {
 			$result['styles'] = $report;
@@ -315,6 +319,7 @@ class McpTools
 	 * @param string $find  The text to search for (\v = soft line break)
 	 * @param string $replace  The replacement text (\v = soft line break)
 	 * @param bool $matchCase  Case-sensitive matching
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: rejected if the deck changed since
 	 * @return array{occurrencesChanged: int}
 	 */
 	#[McpTool(
@@ -322,7 +327,13 @@ class McpTools
 		title: 'Replace all text',
 		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: true, openWorldHint: true),
 	)]
-	public function replaceAllText(string $presentationId, string $find, string $replace, bool $matchCase = true): array
+	public function replaceAllText(
+		string $presentationId,
+		string $find,
+		string $replace,
+		bool $matchCase = true,
+		?string $revisionId = null,
+	): array
 	{
 		return [
 			'occurrencesChanged' => $this->getManager()->replaceAllText(
@@ -330,6 +341,7 @@ class McpTools
 				self::decodeSoftBreaks($find),
 				self::decodeSoftBreaks($replace),
 				$matchCase,
+				$revisionId,
 			),
 		];
 	}
@@ -355,6 +367,7 @@ class McpTools
 	 * @param ?float $fontSizePt  Font size in points; null = leave unchanged
 	 * @param ?string $color  Text color as hex "#RRGGBB"; null = leave unchanged
 	 * @param ?int $occurrence  Zero-based occurrence to style; null = every occurrence
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: rejected if the deck changed since
 	 * @return array{occurrencesStyled: int}
 	 */
 	#[McpTool(
@@ -374,6 +387,7 @@ class McpTools
 		?string $color = null,
 		#[Schema(minimum: 0)]
 		?int $occurrence = null,
+		?string $revisionId = null,
 	): array
 	{
 		return [
@@ -387,6 +401,7 @@ class McpTools
 				$fontSizePt,
 				$color,
 				$occurrence,
+				$revisionId,
 			),
 		];
 	}

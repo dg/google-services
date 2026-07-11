@@ -24,6 +24,7 @@ use Google\Service\Slides\SubstringMatchCriteria;
 use Google\Service\Slides\TextElement;
 use Google\Service\Slides\TextStyle;
 use Google\Service\Slides\UpdateTextStyleRequest;
+use Google\Service\Slides\WriteControl;
 
 
 class Manager
@@ -136,14 +137,20 @@ class Manager
 	 * Inserts $text into a shape at $insertionIndex (zero-based, in UTF-16 code units).
 	 * The target $objectId must be a text-bearing shape (table cells are not supported here).
 	 */
-	public function insertText(string $presentationId, string $objectId, string $text, int $insertionIndex = 0): void
+	public function insertText(
+		string $presentationId,
+		string $objectId,
+		string $text,
+		int $insertionIndex = 0,
+		?string $requiredRevisionId = null,
+	): void
 	{
 		$insert = new InsertTextRequest([
 			'objectId' => $objectId,
 			'text' => $text,
 			'insertionIndex' => $insertionIndex,
 		]);
-		$this->batchUpdate($presentationId, [new Request(['insertText' => $insert])]);
+		$this->batchUpdate($presentationId, [new Request(['insertText' => $insert])], $requiredRevisionId);
 	}
 
 
@@ -176,7 +183,13 @@ class Manager
 	 * @param  list<array{substring?: string, bold?: bool, italic?: bool, underline?: bool, fontSizePt?: float, color?: string, occurrence?: int}>  $styles
 	 * @return list<array{substring: string, occurrences: int}>
 	 */
-	public function setShapeText(string $presentationId, string $objectId, string $text, array $styles = []): array
+	public function setShapeText(
+		string $presentationId,
+		string $objectId,
+		string $text,
+		array $styles = [],
+		?string $requiredRevisionId = null,
+	): array
 	{
 		$existing = $this->getElementText($presentationId, $objectId);
 		if ($existing === null) {
@@ -185,7 +198,7 @@ class Manager
 
 		[$requests, $report] = self::setShapeRequests($objectId, $existing, $text, $styles);
 		if ($requests) {
-			$this->batchUpdate($presentationId, $requests);
+			$this->batchUpdate($presentationId, $requests, $requiredRevisionId);
 		}
 		return $report;
 	}
@@ -392,6 +405,7 @@ class Manager
 		?float $fontSizePt = null,
 		?string $foregroundColor = null,
 		?int $occurrence = null,
+		?string $requiredRevisionId = null,
 	): int
 	{
 		if ($substring === '') {
@@ -410,7 +424,7 @@ class Manager
 
 		$requests = self::styleRequests($objectId, $text, $substring, $style, implode(',', $fields), $occurrence);
 		if ($requests) {
-			$this->batchUpdate($presentationId, $requests);
+			$this->batchUpdate($presentationId, $requests, $requiredRevisionId);
 		}
 		return count($requests);
 	}
@@ -420,13 +434,19 @@ class Manager
 	 * Replaces every occurrence of $find with $replace across the whole presentation.
 	 * Returns the number of occurrences changed.
 	 */
-	public function replaceAllText(string $presentationId, string $find, string $replace, bool $matchCase = true): int
+	public function replaceAllText(
+		string $presentationId,
+		string $find,
+		string $replace,
+		bool $matchCase = true,
+		?string $requiredRevisionId = null,
+	): int
 	{
 		$request = new ReplaceAllTextRequest([
 			'containsText' => new SubstringMatchCriteria(['text' => $find, 'matchCase' => $matchCase]),
 			'replaceText' => $replace,
 		]);
-		$reply = $this->batchUpdate($presentationId, [new Request(['replaceAllText' => $request])])->getReplies()[0];
+		$reply = $this->batchUpdate($presentationId, [new Request(['replaceAllText' => $request])], $requiredRevisionId)->getReplies()[0];
 		return (int) $reply->getReplaceAllText()->getOccurrencesChanged();
 	}
 
@@ -435,12 +455,24 @@ class Manager
 	 * Low-level escape hatch: applies a list of Slides API Request objects atomically.
 	 * Prefer the dedicated helpers above; use this for operations they don't cover.
 	 *
+	 * Pass $requiredRevisionId (from Presentation::getRevisionId, exposed by slides_get_presentation)
+	 * for optimistic locking: the whole batch is rejected with a 400 if the presentation was modified
+	 * since — protecting the index-based text edits (whose UTF-16 ranges were computed from a read that
+	 * a concurrent edit may have invalidated) from silently corrupting the document.
+	 *
 	 * @param  list<Request>  $requests
 	 */
-	public function batchUpdate(string $presentationId, array $requests): BatchUpdatePresentationResponse
+	public function batchUpdate(
+		string $presentationId,
+		array $requests,
+		?string $requiredRevisionId = null,
+	): BatchUpdatePresentationResponse
 	{
-		$body = new BatchUpdatePresentationRequest(['requests' => $requests]);
-		return $this->service->presentations->batchUpdate($presentationId, $body);
+		$params = ['requests' => $requests];
+		if ($requiredRevisionId !== null) {
+			$params['writeControl'] = new WriteControl(['requiredRevisionId' => $requiredRevisionId]);
+		}
+		return $this->service->presentations->batchUpdate($presentationId, new BatchUpdatePresentationRequest($params));
 	}
 
 
