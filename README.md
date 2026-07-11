@@ -28,6 +28,12 @@ composer install
 
    This writes `demo/tokens/token.json`. Tokens auto-refresh from then on. **Re-run this whenever the required scope list changes** — tool calls against a token that is missing a scope fail with a clear message.
 
+> **Upgrading an existing install:** the server now requests the full `Calendar` scope (for
+> `calendar_create_event`) instead of read-only. An existing `token.json` granted only
+> `calendar.readonly` no longer covers the required scopes, so **every** tool call (Gmail and Slides
+> included, since authentication is shared) will fail with a clear "missing required scope" error until
+> you re-run `php demo/authenticate.php`.
+
 ## Running the MCP server
 
 ```bash
