@@ -7,7 +7,7 @@ use Google;
 
 class Authenticator
 {
-	private readonly Google\Client $client;
+	private ?Google\Client $client = null;
 
 
 	public function __construct(
@@ -15,7 +15,32 @@ class Authenticator
 		private array $scopes,
 		private string $tokenDir,
 	) {
-		$this->client = $this->createClient();
+	}
+
+
+	/**
+	 * The Google\Client is built lazily on first use. setAuthConfig() throws when secret.json is
+	 * missing/unreadable; building eagerly in the constructor would crash the MCP server before the
+	 * handshake (the host sees only "server died"). Deferring it lets the failure surface as an
+	 * AuthException at the first tool call, which McpTools converts to a self-correctable tool error.
+	 */
+	private function getClient(): Google\Client
+	{
+		if ($this->client !== null) {
+			return $this->client;
+		}
+		try {
+			return $this->client = $this->createClient();
+		} catch (Google\Exception | \LogicException $e) {
+			// setAuthConfig() throws InvalidArgumentException when secret.json is missing and a plain
+			// LogicException when it is malformed JSON. Convert both to AuthException so getManager()
+			// renders a re-authorize hint instead of an opaque tool error.
+			throw new AuthException(
+				"Failed to initialize the Google client (is {$this->tokenDir}/secret.json present and valid?): " . $e->getMessage(),
+				0,
+				$e,
+			);
+		}
 	}
 
 
@@ -61,20 +86,26 @@ class Authenticator
 	 */
 	public function authenticate(): Google\Client
 	{
+		$client = $this->getClient();
 		$tokenPath = $this->tokenDir . '/token.json';
 		if (file_exists($tokenPath)) {
 			$accessToken = json_decode(
 				file_get_contents($tokenPath) ?: throw new AuthException("Failed to read token file: $tokenPath"),
 				true,
 			);
-			$this->client->setAccessToken($accessToken);
+			if (!is_array($accessToken)) {
+				// Malformed/truncated token.json (e.g. a crash outside the atomic write path, or a hand-edit).
+				// Treat as a re-auth state, not a TypeError from setAccessToken(null).
+				throw new AuthException("Malformed token file (not a JSON object): $tokenPath. Re-authorization is required.");
+			}
+			$client->setAccessToken($accessToken);
 		}
 
-		if ($this->client->isAccessTokenExpired()) {
-			$refreshToken = $this->client->getRefreshToken();
+		if ($client->isAccessTokenExpired()) {
+			$refreshToken = $client->getRefreshToken();
 			if ($refreshToken) {
 				try {
-					$newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
+					$newAccessToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
 				} catch (Google\Exception $e) {
 					// network/transport failure: keep the stored token so the user can retry later
 					throw new AuthException('Token refresh failed (transport): ' . $e->getMessage(), 0, $e);
@@ -93,38 +124,39 @@ class Authenticator
 					$newAccessToken['refresh_token'] = $refreshToken;
 				}
 
-				$this->client->setAccessToken($newAccessToken);
+				$client->setAccessToken($newAccessToken);
 				$this->saveToken($newAccessToken);
 
-				return $this->client;
+				return $client;
 			}
 
 			@unlink($tokenPath);
 			throw new AuthException('The access token has expired and no refresh token is available/valid. New authorization is required.');
 		}
 
-		if (!$this->client->getAccessToken()) {
+		if (!$client->getAccessToken()) {
 			throw new AuthException('No valid access token available. Authorization is required.');
 		}
 
-		return $this->client;
+		return $client;
 	}
 
 
 	public function getAuthUrl(): string
 	{
-		return $this->client->createAuthUrl();
+		return $this->getClient()->createAuthUrl();
 	}
 
 
 	public function exchangeCodeForToken(string $authCode): void
 	{
 		try {
-			$accessToken = $this->client->fetchAccessTokenWithAuthCode($authCode);
+			$client = $this->getClient();
+			$accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
 			if (array_key_exists('error', $accessToken)) {
 				throw new AuthException('Error obtaining access token: ' . json_encode($accessToken));
 			}
-			$this->client->setAccessToken($accessToken); // Sets the token to internal client
+			$client->setAccessToken($accessToken); // Sets the token to internal client
 			$this->saveToken($accessToken);
 		} catch (Google\Exception $e) {
 			throw new AuthException('Error when exchanging code for token: ' . $e->getMessage(), $e->getCode(), $e);
