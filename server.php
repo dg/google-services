@@ -51,8 +51,9 @@ $instructions = <<<TEXT
 	Google Services MCP server (single-user, personal use; runs over stdio with locally-stored OAuth tokens).
 	Exposes Gmail tools, read-only Calendar tools (calendar_list_events, calendar_list_calendars) and
 	Google Slides tools (slides_get_presentation, slides_get_text_styles, slides_add_slide,
-	slides_duplicate_slide, slides_delete_object, slides_insert_text, slides_set_shape_text,
-	slides_format_text, slides_replace_all_text). Meet tools may be added in the future.
+	slides_add_text_box, slides_duplicate_slide, slides_move_slide, slides_set_slide_visibility,
+	slides_delete_object, slides_insert_text, slides_set_shape_text, slides_format_text,
+	slides_replace_all_text). Meet tools may be added in the future.
 	Outbound send tools (gmail_send_draft, gmail_send_reply) are $sendStatus.
 	Filesystem sandbox for attachments (gmail_get_attachment, attachments[] in draft/send tools): $filesStatus.
 
@@ -90,11 +91,14 @@ $instructions = <<<TEXT
 	    edited right after a bold word silently turns bold). When the text is NOT changing, use
 	    slides_format_text. Both match a literal substring and compute the UTF-16 range for you — never
 	    count character offsets by hand.
-	  - The server edits text and inline character style (bold/italic/underline/size/color) only. It
-	    CANNOT create or delete shapes/text boxes or change a slide's layout, hide/show a slide
-	    (isSkipped — it cannot even tell which slides are hidden), set paragraph style (line spacing,
-	    space above/below, bullet style), read or set fill/background colors, or touch animations. Do
-	    those in the Slides UI; through the server, only fill the resulting shapes with text and style.
+	  - Slide-level ops: slides_add_slide / slides_duplicate_slide add slides, slides_move_slide reorders,
+	    slides_delete_object deletes a slide or element, slides_set_slide_visibility hides/shows a slide
+	    (slides_get_presentation reports each slide's `hidden` state). slides_add_text_box creates a new
+	    text box (position/size in points) to then fill with the text tools.
+	  - Still NOT supported (do these in the Slides UI): changing a slide's layout, creating non-textbox
+	    shapes, paragraph style (line spacing, space above/below, bullet style), fill/background colors,
+	    and animations. Through the server you edit text and inline character style (bold/italic/
+	    underline/size/color), and manage slides and text boxes as listed above.
 	TEXT;
 
 // Every tool body's errors are converted to ToolCallException centrally by McpToolCallGuard,
