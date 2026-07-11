@@ -428,10 +428,11 @@ class McpTools
 	 *
 	 * @param list<string> $to  One or more recipient email addresses (must contain at least one)
 	 * @param string $subject  Email subject
-	 * @param string $body  Plain-text body
+	 * @param string $body  Plain-text body (also the text/plain alternative when htmlBody is given)
 	 * @param list<string> $cc  Carbon-copy recipients
 	 * @param list<string> $bcc  Blind-carbon-copy recipients
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -450,9 +451,10 @@ class McpTools
 		array $bcc = [],
 		#[Schema(items: self::AttachmentSchema)]
 		array $attachments = [],
+		string $htmlBody = '',
 	): array
 	{
-		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments));
+		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments), $htmlBody === '' ? null : $htmlBody);
 		return ['draftId' => $this->getManager()->saveDraft($mail)];
 	}
 
@@ -470,6 +472,7 @@ class McpTools
 	 * @param list<string> $cc  Carbon-copy recipients
 	 * @param list<string> $bcc  Blind-carbon-copy recipients
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -489,9 +492,10 @@ class McpTools
 		array $bcc = [],
 		#[Schema(items: self::AttachmentSchema)]
 		array $attachments = [],
+		string $htmlBody = '',
 	): array
 	{
-		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments));
+		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments), $htmlBody === '' ? null : $htmlBody);
 		return ['draftId' => $this->getManager()->updateDraft($draftId, $mail)];
 	}
 

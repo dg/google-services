@@ -378,6 +378,8 @@ class Manager
 	 * @param list<string> $cc
 	 * @param list<string> $bcc
 	 * @param list<array{filename: string, path: string}> $attachments
+	 * @param ?string $htmlBody  Optional HTML body. When given, it is sent as text/html and $body is the
+	 *   text/plain alternative; pass $body = '' to let Nette derive the plaintext from the HTML.
 	 */
 	public static function createMessage(
 		array $to,
@@ -386,6 +388,7 @@ class Manager
 		array $cc,
 		array $bcc,
 		array $attachments,
+		?string $htmlBody = null,
 	): MailMessage
 	{
 		if (!$to) {
@@ -393,6 +396,11 @@ class Manager
 		}
 		$mail = new MailMessage;
 		$mail->setBody($body);
+		if ($htmlBody !== null && $htmlBody !== '') {
+			// setHtmlBody keeps the plaintext set above as the text/plain alternative; if $body was ''
+			// it derives one from the HTML. basePath is null so no local-image embedding is attempted.
+			$mail->setHtmlBody($htmlBody, basePath: null);
+		}
 		$totalBytes = 0;
 		foreach ($attachments as $att) {
 			// pre-check via filesize() so a single oversize file can't be slurped fully into RAM before the cap throws

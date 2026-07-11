@@ -91,6 +91,25 @@ test('attachment with quote in filename is escaped, body present', function () u
 });
 
 
+test('htmlBody produces a multipart message with an html part', function () use ($build) {
+	$mail = $build(['to@example.com'], 'Subj', 'plain text', [], [], [], '<p>Hi <b>there</b></p>');
+	assert($mail instanceof Nette\Mail\Message);
+	$raw = $mail->generateMessage();
+
+	Assert::contains('Content-Type: multipart/alternative', $raw);
+	Assert::contains('text/html', $raw);
+	Assert::same('plain text', $mail->getBody()); // explicit plaintext alternative kept
+	Assert::contains('<b>there</b>', $mail->getHtmlBody());
+});
+
+
+test('empty body with htmlBody derives the plaintext alternative from the html', function () use ($build) {
+	$mail = $build(['to@example.com'], 'Subj', '', [], [], [], '<p>Derived line</p>');
+	assert($mail instanceof Nette\Mail\Message);
+	Assert::contains('Derived line', $mail->getBody());
+});
+
+
 test('invalid recipient email is rejected by Nette validators', function () use ($build) {
 	Assert::exception(
 		fn() => $build(['not-an-email'], 'Subj', 'Body', [], [], []),
