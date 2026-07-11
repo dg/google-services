@@ -2,7 +2,7 @@
 
 namespace DG\Google\Gmail;
 
-use DG\Google\AuthException;
+use DG\Google\ManagerResolver;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
@@ -77,18 +77,7 @@ class McpTools
 
 	private function getManager(): Manager
 	{
-		if ($this->manager !== null) {
-			return $this->manager;
-		}
-		try {
-			return $this->manager = ($this->managerFactory)();
-		} catch (AuthException $e) {
-			throw new ToolCallException(
-				'Gmail authentication failed: ' . $e->getMessage() . ' Re-authorize via `php demo/authenticate.php`.',
-				0,
-				$e,
-			);
-		}
+		return $this->manager ??= ManagerResolver::resolve($this->managerFactory);
 	}
 
 

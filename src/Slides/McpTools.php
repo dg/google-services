@@ -2,11 +2,10 @@
 
 namespace DG\Google\Slides;
 
-use DG\Google\AuthException;
+use DG\Google\ManagerResolver;
 use Google\Service\Slides\Page;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
-use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 
 
@@ -30,18 +29,7 @@ class McpTools
 
 	private function getManager(): Manager
 	{
-		if ($this->manager !== null) {
-			return $this->manager;
-		}
-		try {
-			return $this->manager = ($this->managerFactory)();
-		} catch (AuthException $e) {
-			throw new ToolCallException(
-				'Google authentication failed: ' . $e->getMessage() . ' Re-authorize via `php demo/authenticate.php`.',
-				0,
-				$e,
-			);
-		}
+		return $this->manager ??= ManagerResolver::resolve($this->managerFactory);
 	}
 
 
