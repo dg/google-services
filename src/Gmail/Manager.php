@@ -530,12 +530,56 @@ class Manager
 			}
 			$mimeType = $p->getMimeType();
 			if ($mimeType === 'text/plain' && $plain === null) {
-				$plain = self::base64UrlDecode($data);
+				$plain = self::decodeTextPart($p, $data);
 			} elseif ($mimeType === 'text/html' && $html === null) {
-				$html = self::base64UrlDecode($data);
+				$html = self::decodeTextPart($p, $data);
 			}
 		}
 		return [$plain, $html];
+	}
+
+
+	/**
+	 * Decodes a text part's base64url data to a UTF-8 string, honoring the part's declared charset.
+	 * Older mail is often ISO-8859-2 / windows-1250 (typical for Czech); left as raw bytes those would
+	 * either display as mojibake or, worse, make json_encode of the whole MCP response fail. The result
+	 * is always valid UTF-8: converted from the declared charset when known, then run through
+	 * Strings::fixEncoding as a final guard against mislabeled or corrupt input.
+	 */
+	private static function decodeTextPart(Gmail\MessagePart $part, string $data): string
+	{
+		$bytes = self::base64UrlDecode($data);
+		$charset = self::partCharset($part);
+		if ($charset !== null && !in_array(strtoupper($charset), ['UTF-8', 'US-ASCII', 'ASCII'], true)) {
+			try {
+				$converted = mb_convert_encoding($bytes, 'UTF-8', $charset);
+				if (is_string($converted)) {
+					return Strings::fixEncoding($converted);
+				}
+			} catch (\ValueError) {
+				// charset unknown to mbstring (e.g. some windows-* aliases) — try iconv before giving up
+				$converted = @iconv($charset, 'UTF-8//IGNORE', $bytes);
+				if ($converted !== false) {
+					return $converted;
+				}
+			}
+		}
+		return Strings::fixEncoding($bytes);
+	}
+
+
+	/**
+	 * Reads the charset parameter from a part's Content-Type header (e.g. `text/plain; charset="…"`),
+	 * or null when none is declared.
+	 */
+	private static function partCharset(Gmail\MessagePart $part): ?string
+	{
+		foreach ($part->getHeaders() as $h) {
+			if (strcasecmp($h->getName(), 'Content-Type') === 0) {
+				return preg_match('/charset\s*=\s*"?([^";\s]+)"?/i', $h->getValue(), $m) ? $m[1] : null;
+			}
+		}
+		return null;
 	}
 
 
