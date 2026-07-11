@@ -258,6 +258,24 @@ class Manager
 
 
 	/**
+	 * Moves a thread to Trash (recoverable for ~30 days, after which Gmail purges it).
+	 */
+	public function trashThread(string $threadId): void
+	{
+		$this->service->users_threads->trash($this->userId, $threadId);
+	}
+
+
+	/**
+	 * Restores a thread from Trash back to where its labels place it.
+	 */
+	public function untrashThread(string $threadId): void
+	{
+		$this->service->users_threads->untrash($this->userId, $threadId);
+	}
+
+
+	/**
 	 * @return list<array{id: string, name: string, type: string}>
 	 */
 	public function listLabels(): array

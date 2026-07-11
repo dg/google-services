@@ -624,6 +624,45 @@ class McpTools
 
 
 	/**
+	 * Move a thread to Trash. Recoverable: Gmail keeps trashed mail for about 30 days (restore with
+	 * gmail_untrash_thread) before purging it. Prefer this over gmail_archive_thread when the intent is
+	 * to discard the thread, not just remove it from the inbox. Marked destructive so hosts confirm.
+	 *
+	 * @param string $threadId  Thread to trash
+	 * @return array{trashed: string}
+	 */
+	#[McpTool(
+		name: 'gmail_trash_thread',
+		title: 'Trash Gmail thread',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true),
+	)]
+	public function trashThread(string $threadId): array
+	{
+		$this->getManager()->trashThread($threadId);
+		return ['trashed' => $threadId];
+	}
+
+
+	/**
+	 * Restore a thread from Trash (undo of gmail_trash_thread). The thread returns to wherever its
+	 * labels place it (e.g. the inbox if it still carries INBOX).
+	 *
+	 * @param string $threadId  Thread to restore from Trash
+	 * @return array{untrashed: string}
+	 */
+	#[McpTool(
+		name: 'gmail_untrash_thread',
+		title: 'Restore Gmail thread from Trash',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function untrashThread(string $threadId): array
+	{
+		$this->getManager()->untrashThread($threadId);
+		return ['untrashed' => $threadId];
+	}
+
+
+	/**
 	 * List all Gmail labels for the user (system labels like INBOX/SENT and user-defined).
 	 * Returns id, name and type for each. Use the IDs with gmail_label_thread / gmail_unlabel_thread.
 	 *
