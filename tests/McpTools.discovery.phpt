@@ -33,6 +33,8 @@ Assert::same([
 	'gmail_send_reply',
 	'gmail_unlabel_message',
 	'gmail_unlabel_thread',
+	'gmail_update_draft',
+	'gmail_update_draft_reply',
 	'slides_add_slide',
 	'slides_delete_object',
 	'slides_duplicate_slide',

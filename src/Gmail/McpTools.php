@@ -450,6 +450,76 @@ class McpTools
 
 
 	/**
+	 * Overwrite an existing standalone draft with new content (subject, recipients, body, attachments
+	 * are all replaced). Use this to revise a draft created via gmail_create_draft instead of deleting
+	 * and recreating it. For a reply draft (one attached to a thread) use gmail_update_draft_reply,
+	 * which preserves the thread linkage and reply headers.
+	 *
+	 * @param string $draftId  Draft ID returned by gmail_create_draft / gmail_list_drafts
+	 * @param list<string> $to  One or more recipient email addresses (must contain at least one)
+	 * @param string $subject  Email subject
+	 * @param string $body  Plain-text body
+	 * @param list<string> $cc  Carbon-copy recipients
+	 * @param list<string> $bcc  Blind-carbon-copy recipients
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @return array{draftId: string}
+	 */
+	#[McpTool(
+		name: 'gmail_update_draft',
+		title: 'Update draft email',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function updateDraft(
+		string $draftId,
+		#[Schema(items: ['type' => 'string', 'format' => 'email'], minItems: 1)]
+		array $to,
+		string $subject,
+		string $body,
+		#[Schema(items: ['type' => 'string', 'format' => 'email'])]
+		array $cc = [],
+		#[Schema(items: ['type' => 'string', 'format' => 'email'])]
+		array $bcc = [],
+		#[Schema(items: self::AttachmentSchema)]
+		array $attachments = [],
+	): array
+	{
+		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments));
+		return ['draftId' => $this->getManager()->updateDraft($draftId, $mail)];
+	}
+
+
+	/**
+	 * Overwrite an existing reply draft (one attached to a thread) with a new body / attachments.
+	 * Subject, To, Cc, In-Reply-To and References are re-derived from the thread's last message, just
+	 * like gmail_create_draft_reply, so the draft stays a correct reply. Use this to revise a reply
+	 * draft instead of deleting and recreating it.
+	 *
+	 * @param string $draftId  Draft ID returned by gmail_create_draft_reply / gmail_list_drafts
+	 * @param string $threadId  Thread the draft replies into (from gmail_list_drafts)
+	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @return array{draftId: string}
+	 */
+	#[McpTool(
+		name: 'gmail_update_draft_reply',
+		title: 'Update draft reply',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function updateDraftReply(
+		string $draftId,
+		string $threadId,
+		string $body,
+		#[Schema(items: self::AttachmentSchema)]
+		array $attachments = [],
+	): array
+	{
+		$mgr = $this->getManager();
+		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments));
+		return ['draftId' => $mgr->updateDraft($draftId, $mail, $threadId)];
+	}
+
+
+	/**
 	 * Send an existing draft (created earlier via gmail_create_draft or gmail_create_draft_reply).
 	 * Prefer this over gmail_send_reply when the user should review the draft first.
 	 *

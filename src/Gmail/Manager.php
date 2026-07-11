@@ -179,6 +179,22 @@ class Manager
 	 */
 	public function saveDraft(MailMessage $mail, ?string $threadId = null): string
 	{
+		return $this->service->users_drafts->create($this->userId, $this->buildDraft($mail, $threadId))->getId();
+	}
+
+
+	/**
+	 * Overwrites an existing draft with a freshly built MailMessage. Pass $threadId to keep the draft
+	 * attached to its thread (a reply draft); null for a standalone draft. Returns the (unchanged) draft ID.
+	 */
+	public function updateDraft(string $draftId, MailMessage $mail, ?string $threadId = null): string
+	{
+		return $this->service->users_drafts->update($this->userId, $draftId, $this->buildDraft($mail, $threadId))->getId();
+	}
+
+
+	private function buildDraft(MailMessage $mail, ?string $threadId): Gmail\Draft
+	{
 		$message = new Gmail\Message;
 		$message->setRaw(self::base64UrlEncode($mail->generateMessage()));
 		if ($threadId !== null) {
@@ -187,8 +203,7 @@ class Manager
 
 		$draft = new Gmail\Draft;
 		$draft->setMessage($message);
-
-		return $this->service->users_drafts->create($this->userId, $draft)->getId();
+		return $draft;
 	}
 
 
