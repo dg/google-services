@@ -38,6 +38,7 @@ Assert::same([
 	'gmail_update_draft',
 	'gmail_update_draft_reply',
 	'slides_add_slide',
+	'slides_add_text_box',
 	'slides_delete_object',
 	'slides_duplicate_slide',
 	'slides_format_text',

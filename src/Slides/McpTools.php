@@ -168,6 +168,55 @@ class McpTools
 
 
 	/**
+	 * Create a new text box on a slide and return its object ID (which you can then edit with
+	 * slides_insert_text / slides_set_shape_text / slides_format_text). The edit tools only fill
+	 * EXISTING shapes; this is how you add a brand-new one. Position (x, y) and size (width, height)
+	 * are in POINTS from the slide's top-left; a standard 16:9 slide is 720 x 405 pt. Optionally pass
+	 * initial text (newline = new paragraph; \v = soft line break).
+	 *
+	 * @param string $presentationId  The presentation ID
+	 * @param string $slideObjectId  Object ID of the slide to place the box on (from slides_get_presentation)
+	 * @param string $text  Optional initial text
+	 * @param float $x  Left offset in points
+	 * @param float $y  Top offset in points
+	 * @param float $width  Box width in points
+	 * @param float $height  Box height in points
+	 * @return array{objectId: string}
+	 */
+	#[McpTool(
+		name: 'slides_add_text_box',
+		title: 'Add a text box',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, openWorldHint: true),
+	)]
+	public function addTextBox(
+		string $presentationId,
+		string $slideObjectId,
+		string $text = '',
+		#[Schema(minimum: 0)]
+		float $x = 50,
+		#[Schema(minimum: 0)]
+		float $y = 50,
+		#[Schema(minimum: 1)]
+		float $width = 400,
+		#[Schema(minimum: 1)]
+		float $height = 100,
+	): array
+	{
+		return [
+			'objectId' => $this->getManager()->addTextBox(
+				$presentationId,
+				$slideObjectId,
+				self::decodeSoftBreaks($text),
+				$x,
+				$y,
+				$width,
+				$height,
+			),
+		];
+	}
+
+
+	/**
 	 * Duplicate a slide (copying all of its elements) and return the object ID of the copy.
 	 * The copy is placed immediately after the original.
 	 *

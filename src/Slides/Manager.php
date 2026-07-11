@@ -4,8 +4,10 @@ namespace DG\Google\Slides;
 
 use Google;
 use Google\Service\Slides;
+use Google\Service\Slides\AffineTransform;
 use Google\Service\Slides\BatchUpdatePresentationRequest;
 use Google\Service\Slides\BatchUpdatePresentationResponse;
+use Google\Service\Slides\CreateShapeRequest;
 use Google\Service\Slides\CreateSlideRequest;
 use Google\Service\Slides\DeleteObjectRequest;
 use Google\Service\Slides\DeleteTextRequest;
@@ -16,10 +18,12 @@ use Google\Service\Slides\LayoutReference;
 use Google\Service\Slides\OptionalColor;
 use Google\Service\Slides\Page;
 use Google\Service\Slides\PageElement;
+use Google\Service\Slides\PageElementProperties;
 use Google\Service\Slides\Presentation;
 use Google\Service\Slides\Range;
 use Google\Service\Slides\ReplaceAllTextRequest;
 use Google\Service\Slides\Request;
+use Google\Service\Slides\Size;
 use Google\Service\Slides\SlideProperties;
 use Google\Service\Slides\SubstringMatchCriteria;
 use Google\Service\Slides\TextElement;
@@ -73,6 +77,9 @@ class Manager
 	private const StyleShapeMask = 'shape(' . self::StyleTextMask . ')';
 	private const StyleLeafMask = 'objectId,' . self::StyleShapeMask;
 
+	/** The Slides API measures geometry in EMU (English Metric Units); 1 pt = 12700 EMU. */
+	private const EmuPerPoint = 12700;
+
 	private Slides $service;
 
 
@@ -112,6 +119,50 @@ class Manager
 
 		$reply = $this->batchUpdate($presentationId, [new Request(['createSlide' => $create])])->getReplies()[0];
 		return $reply->getCreateSlide()->getObjectId();
+	}
+
+
+	/**
+	 * Creates a new TEXT_BOX shape on the slide $slideObjectId, positioned at ($x, $y) with the given
+	 * $width/$height (all in points), optionally pre-filled with $text, and returns its object ID. This
+	 * is the "create a text box" the edit tools otherwise can't do (they only fill existing shapes).
+	 */
+	public function addTextBox(
+		string $presentationId,
+		string $slideObjectId,
+		string $text,
+		float $x,
+		float $y,
+		float $width,
+		float $height,
+	): string
+	{
+		$objectId = 'tb_' . bin2hex(random_bytes(8));
+		$pt = static fn(float $points): Dimension => new Dimension(['magnitude' => $points * self::EmuPerPoint, 'unit' => 'EMU']);
+		$requests = [new Request(['createShape' => new CreateShapeRequest([
+			'objectId' => $objectId,
+			'shapeType' => 'TEXT_BOX',
+			'elementProperties' => new PageElementProperties([
+				'pageObjectId' => $slideObjectId,
+				'size' => new Size(['width' => $pt($width), 'height' => $pt($height)]),
+				'transform' => new AffineTransform([
+					'scaleX' => 1,
+					'scaleY' => 1,
+					'translateX' => $x * self::EmuPerPoint,
+					'translateY' => $y * self::EmuPerPoint,
+					'unit' => 'EMU',
+				]),
+			]),
+		])])];
+		if ($text !== '') {
+			$requests[] = new Request(['insertText' => new InsertTextRequest([
+				'objectId' => $objectId,
+				'text' => $text,
+				'insertionIndex' => 0,
+			])]);
+		}
+		$this->batchUpdate($presentationId, $requests);
+		return $objectId;
 	}
 
 
