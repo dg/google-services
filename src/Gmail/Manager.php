@@ -7,6 +7,7 @@ use Google\Service\Exception as GoogleException;
 use Google\Service\Gmail;
 use Nette\Mail\Message as MailMessage;
 use Nette\Utils\FileSystem;
+use Nette\Utils\Strings;
 
 
 class Manager
@@ -493,9 +494,26 @@ class Manager
 	{
 		$result = [];
 		foreach ($headers as $h) {
-			$result[strtolower($h->getName())] = $h->getValue();
+			$result[strtolower($h->getName())] = self::decodeHeader($h->getValue());
 		}
 		return $result;
+	}
+
+
+	/**
+	 * Decodes RFC 2047 encoded-words (e.g. `=?UTF-8?B?...?=` in Subject or a display name) to plain
+	 * UTF-8. Gmail returns headers verbatim, so without this a non-ASCII subject or sender name would
+	 * reach the model still encoded. A header with no encoded-word is returned unchanged (ASCII
+	 * Message-Id/References/Date are unaffected). The result is forced to valid UTF-8 so a mislabeled
+	 * charset can't produce a string that later breaks json_encode.
+	 */
+	private static function decodeHeader(string $value): string
+	{
+		if (!str_contains($value, '=?')) {
+			return $value;
+		}
+		$decoded = @mb_decode_mimeheader($value);
+		return Strings::fixEncoding($decoded);
 	}
 
 
