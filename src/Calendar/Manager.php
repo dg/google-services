@@ -257,12 +257,14 @@ class Manager
 	{
 		$res = [];
 		foreach ($emails as $email) {
-			$email = strtolower(trim($email));
-			if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-				trigger_error("Invalid email address: $email", E_USER_WARNING);
-				continue;
+			$normalized = strtolower(trim($email));
+			if (!filter_var($normalized, FILTER_VALIDATE_EMAIL)) {
+				// Fail loudly and consistently with the rest of the codebase. A trigger_error warning is
+				// invisible over the MCP transport, and silently dropping the address would quietly invite
+				// or remove the wrong set of attendees.
+				throw new \InvalidArgumentException("Invalid email address: $email");
 			}
-			$res[$email] = true;
+			$res[$normalized] = true;
 		}
 		return $res;
 	}
