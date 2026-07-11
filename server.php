@@ -51,8 +51,9 @@ $filesStatus = match (true) {
 };
 $instructions = <<<TEXT
 	Google Services MCP server (single-user, personal use; runs over stdio with locally-stored OAuth tokens).
-	Exposes Gmail tools, Calendar tools (calendar_list_events, calendar_list_calendars, and
-	calendar_create_event when enabled) and
+	Exposes Gmail tools, Calendar tools (calendar_list_events, calendar_list_calendars, and — when
+	calendar write is enabled — calendar_create_event, calendar_add_attendees,
+	calendar_remove_attendees, calendar_update_event_description) and
 	Google Slides tools (slides_get_presentation, slides_get_text_styles, slides_add_slide,
 	slides_add_text_box, slides_duplicate_slide, slides_move_slide, slides_set_slide_visibility,
 	slides_delete_object, slides_insert_text, slides_set_shape_text, slides_format_text,

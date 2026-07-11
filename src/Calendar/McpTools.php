@@ -214,6 +214,84 @@ class McpTools
 	}
 
 
+	/**
+	 * Invite one or more attendees to an existing event. Only newly-added attendees are emailed (the
+	 * existing guest list is not re-notified). Writing is opt-in (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 *
+	 * @param string $eventId  Event to modify (from calendar_list_events)
+	 * @param list<string> $attendees  Attendee email addresses to invite
+	 * @param bool $sendNotifications  Email the newly-added attendees
+	 * @param string $calendarId  Calendar the event lives on
+	 * @return array{eventId: string, added: list<string>}
+	 */
+	#[McpTool(
+		name: 'calendar_add_attendees',
+		title: 'Add event attendees',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function addAttendees(
+		string $eventId,
+		#[Schema(items: ['type' => 'string', 'format' => 'email'], minItems: 1)]
+		array $attendees,
+		bool $sendNotifications = true,
+		string $calendarId = 'primary',
+	): array
+	{
+		$this->requireWriteAllowed();
+		$this->getManager()->addAttendees($eventId, $attendees, $sendNotifications, $calendarId);
+		return ['eventId' => $eventId, 'added' => $attendees];
+	}
+
+
+	/**
+	 * Remove one or more attendees from an existing event (no notifications are sent). Writing is
+	 * opt-in (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 *
+	 * @param string $eventId  Event to modify
+	 * @param list<string> $attendees  Attendee email addresses to remove
+	 * @param string $calendarId  Calendar the event lives on
+	 * @return array{eventId: string, removed: list<string>}
+	 */
+	#[McpTool(
+		name: 'calendar_remove_attendees',
+		title: 'Remove event attendees',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true),
+	)]
+	public function removeAttendees(
+		string $eventId,
+		#[Schema(items: ['type' => 'string', 'format' => 'email'], minItems: 1)]
+		array $attendees,
+		string $calendarId = 'primary',
+	): array
+	{
+		$this->requireWriteAllowed();
+		$this->getManager()->removeAttendees($eventId, $attendees, $calendarId);
+		return ['eventId' => $eventId, 'removed' => $attendees];
+	}
+
+
+	/**
+	 * Replace an event's description (no notifications are sent). Writing is opt-in
+	 * (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 *
+	 * @param string $eventId  Event to modify
+	 * @param string $description  New description text
+	 * @param string $calendarId  Calendar the event lives on
+	 * @return array{eventId: string}
+	 */
+	#[McpTool(
+		name: 'calendar_update_event_description',
+		title: 'Update event description',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true),
+	)]
+	public function updateEventDescription(string $eventId, string $description, string $calendarId = 'primary'): array
+	{
+		$this->requireWriteAllowed();
+		$this->getManager()->updateDescription($eventId, $description, $calendarId);
+		return ['eventId' => $eventId];
+	}
+
+
 	private static function parseRequiredTime(string $value, string $param, ?\DateTimeZone $tz): \DateTimeImmutable
 	{
 		try {

@@ -15,9 +15,12 @@ $names = array_keys($tools);
 sort($names);
 
 Assert::same([
+	'calendar_add_attendees',
 	'calendar_create_event',
 	'calendar_list_calendars',
 	'calendar_list_events',
+	'calendar_remove_attendees',
+	'calendar_update_event_description',
 	'gmail_archive_thread',
 	'gmail_create_draft',
 	'gmail_create_draft_reply',
