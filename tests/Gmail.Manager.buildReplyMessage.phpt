@@ -125,6 +125,39 @@ test('In-Reply-To and References headers are wired when available', function () 
 });
 
 
+test('replying to our own last message addresses its recipients, not ourselves', function () use ($build) {
+	$thread = makeThread(
+		subject: 'Hi',
+		sender: new Recipient('me@example.com'), // last message was sent BY us
+		to: [new Recipient('client@example.com')],
+		cc: [new Recipient('cc@example.com')],
+	);
+	$manager = makeManagerWithThread('me@example.com', $thread);
+	$mail = $build->invoke($manager, 't1', 'follow-up', []);
+	$raw = $mail->generateMessage();
+	$head = substr($raw, 0, strpos($raw, "\r\n\r\n") ?: strlen($raw));
+
+	Assert::contains('To: client@example.com', $raw);
+	Assert::contains('Cc: cc@example.com', $raw);
+	// we must not send the follow-up to ourselves
+	Assert::notContains('me@example.com', $head);
+});
+
+
+test('our own Bcc-only last message is rejected with a clear error', function () use ($build) {
+	$thread = makeThread(
+		subject: 'Hi',
+		sender: new Recipient('me@example.com'), // sent by us, no To recipients
+	);
+	$manager = makeManagerWithThread('me@example.com', $thread);
+	Assert::exception(
+		fn() => $build->invoke($manager, 't1', 'body', []),
+		DG\Google\Gmail\Exception::class,
+		'Cannot determine reply recipients:%a%',
+	);
+});
+
+
 test('empty thread is rejected with Gmail\Exception', function () use ($build) {
 	$thread = new Thread('empty-id', []);
 	$manager = makeManagerWithThread('me@example.com', $thread);

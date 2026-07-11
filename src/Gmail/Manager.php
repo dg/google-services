@@ -318,7 +318,19 @@ class Manager
 		}
 
 		$myAddress = $this->getMyAddress();
-		$tos = self::extractEmails($last->replyToRecipients ?: [$last->sender]);
+		// Whom to address. Reply-To wins when present. Otherwise reply to the sender — EXCEPT when the
+		// last message is our own (we sent it), where Gmail addresses the original recipients instead;
+		// replying "to the sender" there would just mail ourselves.
+		$lastFromMe = strcasecmp($last->sender->email, $myAddress) === 0;
+		$tos = match (true) {
+			$last->replyToRecipients !== [] => self::extractEmails($last->replyToRecipients),
+			$lastFromMe => self::extractEmails($last->toRecipients),
+			default => self::extractEmails([$last->sender]),
+		};
+		if ($tos === []) {
+			// our own last message with no To (Bcc-only) leaves nobody to address the reply to
+			throw new Exception("Cannot determine reply recipients: the last message in thread $thread->id has no usable To or Reply-To address.");
+		}
 		$ccs = array_values(array_diff(
 			self::extractEmails(array_merge($last->toRecipients, $last->ccRecipients)),
 			$tos,
