@@ -45,7 +45,7 @@ class Manager
 	];
 	public const ContentFields = 'presentationId,title,revisionId,slides(objectId,'
 		. 'pageElements(' . self::LeafMask . ',elementGroup(children(' . self::LeafMask . '))),'
-		. 'slideProperties(notesPage(notesProperties(speakerNotesObjectId),pageElements(objectId,' . self::ShapeMask . '))))';
+		. 'slideProperties(isSkipped,notesPage(notesProperties(speakerNotesObjectId),pageElements(objectId,' . self::ShapeMask . '))))';
 
 	// Field mask covering exactly the text-bearing parts of a presentation (the full DTO graph
 	// easily exceeds the MCP token budget). autoText(content) is included so the reconstructed

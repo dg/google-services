@@ -42,6 +42,7 @@ class McpTools
 	 * lightweight map — each slide's 1-based slideNumber, object ID and its elements' object IDs +
 	 * isTitle, with NO text; (2) then read only the slides you need by passing their slideNumbers.
 	 *
+	 * Each returned slide also reports `hidden` (true when the slide is skipped in the slideshow).
 	 * Each returned slide carries its slideNumber, object ID and text-bearing elements (object IDs
 	 * and, unless outline=true, text — group children flattened in) so you can target an element
 	 * with slides_format_text / slides_insert_text. Placeholder shapes (title/body/subtitle/...) are
@@ -62,7 +63,7 @@ class McpTools
 	 * @param bool $includeNotes  Include speaker-notes elements per slide
 	 * @param bool $outline  Omit element/notes text, returning only object IDs + isTitle (cheap map of a large deck)
 	 * @param list<int> $slideNumbers  1-based slide positions to include; empty = all slides
-	 * @return array{untrustedContent: true, presentationId: string, title: ?string, revisionId: ?string, slideCount: int, outline: bool, slides: list<array{slideNumber: int, objectId: string, elements: list<array{objectId: string, isTitle: bool, placeholderType?: string, text?: string}>, notes?: list<array{objectId: string, text?: string}>}>}
+	 * @return array{untrustedContent: true, presentationId: string, title: ?string, revisionId: ?string, slideCount: int, outline: bool, slides: list<array{slideNumber: int, objectId: string, hidden: bool, elements: list<array{objectId: string, isTitle: bool, placeholderType?: string, text?: string}>, notes?: list<array{objectId: string, text?: string}>}>}
 	 */
 	#[McpTool(
 		name: 'slides_get_presentation',
@@ -90,6 +91,7 @@ class McpTools
 			$entry = [
 				'slideNumber' => $number,
 				'objectId' => (string) $slide->getObjectId(),
+				'hidden' => (bool) $slide->getSlideProperties()?->getIsSkipped(),
 				'elements' => self::elements($slide, $outline),
 			];
 			if ($includeNotes) {
