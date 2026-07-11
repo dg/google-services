@@ -237,6 +237,28 @@ class McpTools
 
 
 	/**
+	 * Hide or show a slide by toggling its "skipped" flag. A hidden (skipped) slide stays in the deck
+	 * but is omitted when presenting. Read the current state from the `hidden` field of
+	 * slides_get_presentation; address the slide by object ID.
+	 *
+	 * @param string $presentationId  The presentation ID
+	 * @param string $slideObjectId  Object ID of the slide
+	 * @param bool $hidden  true to hide (skip) the slide, false to show it
+	 * @return array{slideObjectId: string, hidden: bool}
+	 */
+	#[McpTool(
+		name: 'slides_set_slide_visibility',
+		title: 'Hide or show a slide',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function setSlideVisibility(string $presentationId, string $slideObjectId, bool $hidden): array
+	{
+		$this->getManager()->setSlideHidden($presentationId, $slideObjectId, $hidden);
+		return ['slideObjectId' => $slideObjectId, 'hidden' => $hidden];
+	}
+
+
+	/**
 	 * Insert text into a text-bearing shape, at insertionIndex (zero-based, counted in UTF-16 code
 	 * units — beware emoji and other non-BMP characters count as 2). The target objectId must be a
 	 * shape that accepts text (find it with slides_get_presentation); table cells are not supported.

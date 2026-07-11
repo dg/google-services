@@ -20,9 +20,11 @@ use Google\Service\Slides\Presentation;
 use Google\Service\Slides\Range;
 use Google\Service\Slides\ReplaceAllTextRequest;
 use Google\Service\Slides\Request;
+use Google\Service\Slides\SlideProperties;
 use Google\Service\Slides\SubstringMatchCriteria;
 use Google\Service\Slides\TextElement;
 use Google\Service\Slides\TextStyle;
+use Google\Service\Slides\UpdateSlidePropertiesRequest;
 use Google\Service\Slides\UpdateSlidesPositionRequest;
 use Google\Service\Slides\UpdateTextStyleRequest;
 use Google\Service\Slides\WriteControl;
@@ -135,6 +137,22 @@ class Manager
 			'insertionIndex' => $insertionIndex,
 		]);
 		$this->batchUpdate($presentationId, [new Request(['updateSlidesPosition' => $move])]);
+	}
+
+
+	/**
+	 * Hides ($hidden = true) or shows a slide by toggling its `isSkipped` flag — a skipped slide stays
+	 * in the deck but is omitted when presenting. Read the current state from the `hidden` field of
+	 * slides_get_presentation.
+	 */
+	public function setSlideHidden(string $presentationId, string $slideObjectId, bool $hidden): void
+	{
+		$update = new UpdateSlidePropertiesRequest([
+			'objectId' => $slideObjectId,
+			'slideProperties' => new SlideProperties(['isSkipped' => $hidden]),
+			'fields' => 'isSkipped',
+		]);
+		$this->batchUpdate($presentationId, [new Request(['updateSlideProperties' => $update])]);
 	}
 
 

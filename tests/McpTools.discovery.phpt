@@ -47,6 +47,7 @@ Assert::same([
 	'slides_move_slide',
 	'slides_replace_all_text',
 	'slides_set_shape_text',
+	'slides_set_slide_visibility',
 ], $names);
 
 
