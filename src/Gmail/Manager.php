@@ -5,6 +5,7 @@ namespace DG\Google\Gmail;
 use Google\Http\Batch;
 use Google\Service\Exception as GoogleException;
 use Google\Service\Gmail;
+use Nette\Mail\HtmlComposer;
 use Nette\Mail\Message as MailMessage;
 use Nette\Utils\FileSystem;
 use Nette\Utils\Strings;
@@ -510,6 +511,22 @@ class Manager
 	{
 		$attachment = $this->service->users_messages_attachments->get($this->userId, $messageId, $attachmentId);
 		return self::base64UrlDecode($attachment->getData());
+	}
+
+
+	/**
+	 * Converts an HTML body to readable plain text, for messages that ship HTML only. Delegates to
+	 * Nette\Mail\HtmlComposer::htmlToText (the same converter nette uses to build the text alternative
+	 * of an HTML mail — it drops script/style, renders <a href> as "text <url>", separates table cells
+	 * and breaks paragraphs/headings/list items/<br>) after a tiny pre-pass turning <div> boundaries
+	 * into <br>, since HtmlComposer does not break on <div> and Gmail wraps every visual line in one.
+	 * The point is to spare the model a raw-HTML round-trip (and the tokens of embedded CSS), not to
+	 * reproduce the layout. Output is forced to valid UTF-8.
+	 */
+	public static function htmlToPlainText(string $html): string
+	{
+		$html = preg_replace('#</?div\b[^>]*>#i', '<br>', $html);
+		return Strings::fixEncoding(HtmlComposer::htmlToText($html));
 	}
 
 
