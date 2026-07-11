@@ -189,6 +189,33 @@ class McpTools
 
 
 	/**
+	 * Move a slide to a new position in the deck. insertionIndex is zero-based and counted against the
+	 * current slide order (before the move): 0 makes it the first slide, 1 the second, and so on.
+	 * Address the slide by its object ID (from slides_get_presentation), never by its current number.
+	 *
+	 * @param string $presentationId  The presentation ID
+	 * @param string $slideObjectId  Object ID of the slide to move
+	 * @param int $insertionIndex  Zero-based target position in the current slide order
+	 * @return array{slideObjectId: string, insertionIndex: int}
+	 */
+	#[McpTool(
+		name: 'slides_move_slide',
+		title: 'Move a slide',
+		annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true),
+	)]
+	public function moveSlide(
+		string $presentationId,
+		string $slideObjectId,
+		#[Schema(minimum: 0)]
+		int $insertionIndex,
+	): array
+	{
+		$this->getManager()->moveSlide($presentationId, $slideObjectId, $insertionIndex);
+		return ['slideObjectId' => $slideObjectId, 'insertionIndex' => $insertionIndex];
+	}
+
+
+	/**
 	 * Delete a slide or a page element by its object ID. Deleting a slide removes it entirely;
 	 * deleting an element removes just that shape/table from its slide. This cannot be undone via
 	 * the API — confirm the object ID with slides_get_presentation first.

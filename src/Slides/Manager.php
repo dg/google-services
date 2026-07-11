@@ -23,6 +23,7 @@ use Google\Service\Slides\Request;
 use Google\Service\Slides\SubstringMatchCriteria;
 use Google\Service\Slides\TextElement;
 use Google\Service\Slides\TextStyle;
+use Google\Service\Slides\UpdateSlidesPositionRequest;
 use Google\Service\Slides\UpdateTextStyleRequest;
 use Google\Service\Slides\WriteControl;
 
@@ -120,6 +121,20 @@ class Manager
 		$duplicate = new DuplicateObjectRequest(['objectId' => $objectId]);
 		$reply = $this->batchUpdate($presentationId, [new Request(['duplicateObject' => $duplicate])])->getReplies()[0];
 		return $reply->getDuplicateObject()->getObjectId();
+	}
+
+
+	/**
+	 * Moves the slide with the given object ID to $insertionIndex (zero-based position in the deck's
+	 * slide order, counted before the move). Returns nothing.
+	 */
+	public function moveSlide(string $presentationId, string $slideObjectId, int $insertionIndex): void
+	{
+		$move = new UpdateSlidesPositionRequest([
+			'slideObjectIds' => [$slideObjectId],
+			'insertionIndex' => $insertionIndex,
+		]);
+		$this->batchUpdate($presentationId, [new Request(['updateSlidesPosition' => $move])]);
 	}
 
 
