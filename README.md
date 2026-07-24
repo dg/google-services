@@ -41,7 +41,7 @@ php server.php                                   # uses ./demo/tokens
 GOOGLE_TOKEN_DIR=/path/to/token-dir php server.php
 ```
 
-Configuration is via environment variables (an MCP host passes them through its config; see `demo/.mcp.json` for an example):
+Configuration is via environment variables (an MCP host passes them through its config; see `demo/.mcp.json.example` for an example):
 
 | Variable | Purpose |
 | --- | --- |

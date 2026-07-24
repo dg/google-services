@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"google-services": {
+			"command": "php",
+			"args": ["/path/to/GoogleServices/server.php"],
+			"env": {
+				"GOOGLE_TOKEN_DIR": "/path/to/GoogleServices/demo/tokens",
+				"GOOGLE_FILES_DIR": "/path/to/GoogleServices/demo/files"
+			}
+		}
+	}
+}
