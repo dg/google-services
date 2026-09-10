@@ -8,6 +8,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 use Nette\Utils\FileSystem;
+use function count, is_array, strlen;
 
 
 class McpTools
@@ -16,7 +17,10 @@ class McpTools
 		'type' => 'object',
 		'properties' => [
 			'filename' => ['type' => 'string', 'description' => 'Filename shown to the recipient in the email'],
-			'path' => ['type' => 'string', 'description' => 'Plain filename under GOOGLE_FILES_DIR (no subdirectories, no path separators, no `..`)'],
+			'path' => [
+				'type' => 'string',
+				'description' => 'Plain filename under GOOGLE_FILES_DIR (no subdirectories, no path separators, no `..`)',
+			],
 		],
 		'required' => ['filename', 'path'],
 	];
@@ -41,7 +45,6 @@ class McpTools
 		'text/plain' => 'txt',
 	];
 
-
 	private ?Manager $manager = null;
 
 
@@ -50,26 +53,29 @@ class McpTools
 	 * as ToolCallException at the first tool invocation, not as a process crash before the
 	 * MCP handshake — the host would otherwise see an opaque "server died" with no useful
 	 * message.
-	 *
-	 * @param \Closure(): Manager $managerFactory
-	 * @param bool $allowSend  Outbound mail (gmail_send_draft, gmail_send_reply) is gated
-	 *   behind this flag. Default off; the operator opts in via env GOOGLE_ALLOW_SEND=1.
-	 *   When off, those two tools still appear in tools/list but reject the call with a
-	 *   clear ToolCallException, so a prompt-injected model can't quietly trigger a send
-	 *   even if the host auto-approves the call.
-	 * @param ?string $filesDir  Filesystem sandbox for attachment download / upload (env
-	 *   GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
-	 *   and any draft/send call with a non-empty attachments[]) refuses with a clear error.
-	 *   When set, paths are resolved relative to this directory and `realpath` containment
-	 *   is enforced; symlinks pointing outside the dir are rejected. The path is intentionally
-	 *   NOT validated here: a missing/invalid directory must not crash the stdio transport at
-	 *   wiring time (before McpToolCallGuard is in place) — it surfaces as a ToolCallException
-	 *   from requireFilesDir() at call time instead, so the server still boots and reports the
-	 *   problem diagnosably over JSON-RPC.
 	 */
 	public function __construct(
+		/** @var \Closure(): Manager */
 		private readonly \Closure $managerFactory,
+		/**
+		 * Outbound mail (gmail_send_draft, gmail_send_reply) is gated
+		 * behind this flag. Default off; the operator opts in via env GOOGLE_ALLOW_SEND=1.
+		 * When off, those two tools still appear in tools/list but reject the call with a
+		 * clear ToolCallException, so a prompt-injected model can't quietly trigger a send
+		 * even if the host auto-approves the call.
+		 */
 		private readonly bool $allowSend = false,
+		/**
+		 * Filesystem sandbox for attachment download / upload (env
+		 * GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
+		 * and any draft/send call with a non-empty attachments[]) refuses with a clear error.
+		 * When set, paths are resolved relative to this directory and `realpath` containment
+		 * is enforced; symlinks pointing outside the dir are rejected. The path is intentionally
+		 * NOT validated here: a missing/invalid directory must not crash the stdio transport at
+		 * wiring time (before McpToolCallGuard is in place) — it surfaces as a ToolCallException
+		 * from requireFilesDir() at call time instead, so the server still boots and reports the
+		 * problem diagnosably over JSON-RPC.
+		 */
 		private readonly ?string $filesDir = null,
 	) {
 	}

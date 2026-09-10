@@ -9,6 +9,7 @@ use Nette\Mail\HtmlComposer;
 use Nette\Mail\Message as MailMessage;
 use Nette\Utils\FileSystem;
 use Nette\Utils\Strings;
+use function count, in_array, is_string, sprintf, strlen;
 
 
 class Manager

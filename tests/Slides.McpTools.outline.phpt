@@ -21,7 +21,10 @@ $page = new Page(['pageElements' => [
 		'text' => ['textElements' => [['textRun' => ['content' => 'Body text']]]],
 	]],
 	// an empty BODY placeholder, as on a freshly added slide — must stay addressable
-	['objectId' => 'emptybody', 'shape' => ['placeholder' => ['type' => 'BODY'], 'text' => ['textElements' => []]]],
+	[
+		'objectId' => 'emptybody',
+		'shape' => ['placeholder' => ['type' => 'BODY'], 'text' => ['textElements' => []]],
+	],
 	// an empty non-placeholder decoration — must be dropped
 	['objectId' => 'empty', 'shape' => ['text' => ['textElements' => []]]],
 ]]);

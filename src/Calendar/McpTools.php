@@ -19,15 +19,16 @@ class McpTools
 	 * Manager is resolved lazily so OAuth failures (expired/revoked refresh token) surface
 	 * as ToolCallException at the first tool invocation, not as a process crash before the
 	 * MCP handshake.
-	 *
-	 * @param \Closure(): Manager $managerFactory
-	 * @param bool $allowWrite  Calendar writes (calendar_create_event) are gated behind this flag,
-	 *   mirroring Gmail's send gate. Default off; the operator opts in via env
-	 *   GOOGLE_ALLOW_CALENDAR_WRITE=1. When off, the write tools still appear in tools/list but reject
-	 *   the call with a clear ToolCallException, so a prompt-injected model can't quietly create events.
 	 */
 	public function __construct(
+		/** @var \Closure(): Manager */
 		private \Closure $managerFactory,
+		/**
+		 * Calendar writes (calendar_create_event) are gated behind this flag,
+		 * mirroring Gmail's send gate. Default off; the operator opts in via env
+		 * GOOGLE_ALLOW_CALENDAR_WRITE=1. When off, the write tools still appear in tools/list but reject
+		 * the call with a clear ToolCallException, so a prompt-injected model can't quietly create events.
+		 */
 		private readonly bool $allowWrite = false,
 	) {
 	}

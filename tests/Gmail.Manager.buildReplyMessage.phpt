@@ -67,7 +67,7 @@ test('CRLF in incoming subject is sanitised on the reply', function () use ($bui
 	);
 	$manager = makeManagerWithThread('me@example.com', $thread);
 	$mail = $build->invoke($manager, 't1', 'reply body', []);
-	\assert($mail instanceof Nette\Mail\Message);
+	assert($mail instanceof Nette\Mail\Message);
 	$raw = $mail->generateMessage();
 
 	// "Re: " prefix added; CR/LF collapsed to a single space inside the Subject value

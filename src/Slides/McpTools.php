@@ -7,6 +7,7 @@ use Google\Service\Slides\Page;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Schema\ToolAnnotations;
+use function count;
 
 
 class McpTools
@@ -18,10 +19,9 @@ class McpTools
 	 * Manager is resolved lazily so OAuth failures (expired/revoked refresh token) surface
 	 * as ToolCallException at the first tool invocation, not as a process crash before the
 	 * MCP handshake.
-	 *
-	 * @param \Closure(): Manager $managerFactory
 	 */
 	public function __construct(
+		/** @var \Closure(): Manager */
 		private \Closure $managerFactory,
 	) {
 	}

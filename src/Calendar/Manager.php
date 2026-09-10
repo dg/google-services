@@ -6,6 +6,7 @@ use Google;
 use Google\Service\Calendar;
 use Google\Service\Calendar\Event as GoogleEvent;
 use Google\Service\Calendar\EventAttendee;
+use function count;
 
 
 class Manager
@@ -161,7 +162,8 @@ class Manager
 		$attendees = $event->getAttendees() ?? [];
 		$removedAny = false;
 		foreach ($attendees as $key => $attendee) {
-			if ($attendee instanceof EventAttendee
+			if (
+				$attendee instanceof EventAttendee
 				&& $attendee->getEmail()
 				&& isset($emails[strtolower($attendee->getEmail())])
 			) {

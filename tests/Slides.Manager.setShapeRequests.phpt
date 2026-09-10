@@ -80,12 +80,28 @@ test('styles clears accents on the rewritten run, then applies only the listed s
 	Assert::contains(['op' => 'insert', 'at' => 4, 'text' => 'the shiny'], $ops);
 	// the rewritten run [4,13] gets bold/italic/underline explicitly cleared (no inherited accent)
 	Assert::contains(
-		['op' => 'style', 'start' => 4, 'end' => 13, 'fields' => 'bold,italic,underline', 'bold' => false, 'italic' => false, 'underline' => false],
+		[
+			'op' => 'style',
+			'start' => 4,
+			'end' => 13,
+			'fields' => 'bold,italic,underline',
+			'bold' => false,
+			'italic' => false,
+			'underline' => false,
+		],
 		$ops,
 	);
 	// only "shiny" [8,13] is bolded; the rest of the rewritten run stays normal
 	Assert::contains(
-		['op' => 'style', 'start' => 8, 'end' => 13, 'fields' => 'bold', 'bold' => true, 'italic' => null, 'underline' => null],
+		[
+			'op' => 'style',
+			'start' => 8,
+			'end' => 13,
+			'fields' => 'bold',
+			'bold' => true,
+			'italic' => null,
+			'underline' => null,
+		],
 		$ops,
 	);
 	Assert::same([['substring' => 'shiny', 'occurrences' => 1]], $report);
