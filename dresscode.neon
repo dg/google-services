@@ -1,0 +1,12 @@
+presets:
+	- nette
+
+nameResolution: certain
+
+paths:
+	- src
+	- tests
+
+fileExtensions:
+	- php
+	- phpt
