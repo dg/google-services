@@ -1,15 +1,14 @@
 <?php declare(strict_types=1);
 
-use DG\Google\Gmail\McpTools;
-use Mcp\Capability\Discovery\Discoverer;
-use Mcp\Exception\ToolCallException;
+use DG\Google\AccessLevel;
+use DG\Google\ToolSelection;
 use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';
 
 
-$state = (new Discoverer)->discover(__DIR__ . '/..', ['src']);
-$tools = $state->getTools();
+$tools = ToolSelection::discover();
+ksort($tools);
 
 $names = array_keys($tools);
 sort($names);
@@ -161,29 +160,29 @@ Assert::same(['messageId', 'attachmentId'], array_keys($schema['properties']));
 Assert::same(['messageId', 'attachmentId'], $schema['required']);
 
 
-// Outbound send is gated by allowSend: with the default off the call fails fast,
-// independently of whether a Manager is reachable.
-$disabled = new McpTools(static fn() => throw new RuntimeException('factory must not run when send is disabled'));
-Assert::exception(
-	fn() => $disabled->sendDraft('any-id'),
-	ToolCallException::class,
-	'%A%GOOGLE_ALLOW_SEND=1%A%',
-);
-Assert::exception(
-	fn() => $disabled->sendReply('any-id', 'body'),
-	ToolCallException::class,
-	'%A%GOOGLE_ALLOW_SEND=1%A%',
+// every tool declares its access level; everything that reaches third parties is Send
+$levels = array_map(ToolSelection::getLevel(...), $tools);
+Assert::same(['calendar_add_attendees', 'gmail_send_draft', 'gmail_send_reply'], array_keys(array_filter($levels, fn($level) => $level === AccessLevel::Send)));
+Assert::same(
+	[
+		'calendar_list_calendars',
+		'calendar_list_events',
+		'gmail_get_attachment',
+		'gmail_get_thread',
+		'gmail_list_attachments',
+		'gmail_list_drafts',
+		'gmail_list_labels',
+		'gmail_search_threads',
+		'slides_get_presentation',
+		'slides_get_text_styles',
+	],
+	array_keys(array_filter($levels, fn($level) => $level === AccessLevel::Read)),
 );
 
 
-// Calendar write is gated the same way: with allowWrite off (the default) calendar_create_event
-// fails fast without ever resolving a Manager.
-$calDisabled = new DG\Google\Calendar\McpTools(static fn() => throw new RuntimeException('factory must not run when calendar write is disabled'));
-Assert::exception(
-	fn() => $calDisabled->createEvent('Meeting', '2026-06-01T10:00:00+02:00', '2026-06-01T11:00:00+02:00'),
-	ToolCallException::class,
-	'%A%GOOGLE_ALLOW_CALENDAR_WRITE=1%A%',
-);
+// calendar_create_event is write-level, so it must not be able to invite (and email) guests
+$schema = $tools['calendar_create_event']->tool->inputSchema;
+Assert::false(isset($schema['properties']['attendees']));
 
 
 Assert::same([

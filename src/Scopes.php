@@ -9,21 +9,29 @@ use Google\Service\Slides;
 
 /**
  * Single source of truth for the OAuth scopes the MCP server requires. server.php authorizes with
- * exactly this list; demo/bootstrap.php (the script the user runs to obtain the token) spreads it
- * into its own superset, so the token it mints is guaranteed to cover everything the server needs.
- * Previously the two lists were maintained independently and had already drifted apart.
+ * the scopes of the enabled services; demo/bootstrap.php (the script the user runs to obtain the
+ * token) requests the same, so the token it mints is guaranteed to cover everything the server needs.
  */
 final class Scopes
 {
 	/**
-	 * Scopes needed by the tools the MCP server currently exposes (Gmail, Calendar, Slides). Calendar
-	 * uses the full read-write scope because calendar_create_event writes; the actual writes are still
-	 * gated at the tool layer by GOOGLE_ALLOW_CALENDAR_WRITE, so granting the scope does not by itself
-	 * let the model change the calendar.
+	 * Scope needed by each service the MCP server exposes. Calendar uses the full read-write scope
+	 * because calendar_create_event writes; which tools the model gets is decided by GOOGLE_TOOLS,
+	 * so granting the scope does not by itself let the model change the calendar.
 	 */
-	public const McpServer = [
-		Gmail::GMAIL_MODIFY,
-		Calendar::CALENDAR,
-		Slides::PRESENTATIONS,
+	public const Services = [
+		'gmail' => Gmail::GMAIL_MODIFY,
+		'calendar' => Calendar::CALENDAR,
+		'slides' => Slides::PRESENTATIONS,
 	];
+
+
+	/**
+	 * @param  list<string>  $services
+	 * @return list<string>
+	 */
+	public static function forServices(array $services): array
+	{
+		return array_values(array_intersect_key(self::Services, array_flip($services)));
+	}
 }

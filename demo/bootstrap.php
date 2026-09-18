@@ -3,16 +3,26 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 
+/**
+ * With GOOGLE_TOOLS set, the token covers just the services those rules enable (and lands in
+ * GOOGLE_TOKEN_DIR), e.g. a Slides-only token for a server that must never reach the mailbox.
+ */
 function createAuthenticator(): DG\Google\Authenticator
 {
-	// Spread the server's required scopes so the token this demo mints always covers what the MCP
-	// server needs (see DG\Google\Scopes), then add the extra scopes the demo scripts here use.
+	$tokenDir = getenv('GOOGLE_TOKEN_DIR') ?: __DIR__ . '/tokens';
+	$rules = getenv('GOOGLE_TOOLS') ?: null;
+	if ($rules !== null) {
+		$tools = DG\Google\ToolSelection::select($rules, DG\Google\ToolSelection::discover());
+		return new DG\Google\Authenticator(DG\Google\Scopes::forServices(DG\Google\ToolSelection::getServices($tools)), $tokenDir);
+	}
+
+	// all the server's scopes (see DG\Google\Scopes) plus the extra ones the demo scripts here use
 	return new DG\Google\Authenticator([
-		...DG\Google\Scopes::McpServer,
+		...array_values(DG\Google\Scopes::Services),
 		Google\Service\Drive::DRIVE,
 		Google\Service\Meet::MEETINGS_SPACE_CREATED,
 		// ...
-	], __DIR__ . '/tokens');
+	], $tokenDir);
 }
 
 

@@ -2,6 +2,8 @@
 
 namespace DG\Google\Gmail;
 
+use DG\Google\Access;
+use DG\Google\AccessLevel;
 use DG\Google\ManagerResolver;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
@@ -13,6 +15,29 @@ use function count, is_array, strlen;
 
 class McpTools
 {
+	/** Part of the server instructions, sent when any Gmail tool is enabled */
+	public const Instructions = <<<'TEXT'
+		GMAIL HINTS:
+		  - gmail_search_threads returns metadata only. Call gmail_get_thread for full bodies.
+		  - gmail_get_thread returns plaintext by default. Pass includeHtml=true only when needed.
+		TEXT;
+
+	/** Appended to the instructions only when the write tools are enabled */
+	public const WriteInstructions = <<<'TEXT'
+		  - Default to drafts: write with gmail_create_draft / gmail_create_draft_reply and leave
+		    the sending to the user.
+		  - To discard an unwanted draft, call gmail_delete_draft instead of leaving it behind.
+		  - Use gmail_list_labels to discover label IDs before gmail_label_thread/gmail_unlabel_thread.
+		TEXT;
+
+	/** Appended to the instructions only when the send tools are enabled */
+	public const SendInstructions = <<<'TEXT'
+		  - When the user asks you to send, prefer gmail_create_draft* plus gmail_send_draft over
+		    the one-shot gmail_send_reply, so the draft can be reviewed first.
+		TEXT;
+
+	/** Part of the SECURITY block, sent when any Gmail tool is enabled */
+	public const UntrustedContent = '  - Gmail: sender names, subjects, bodies, attachment filenames.';
 	private const AttachmentSchema = [
 		'type' => 'object',
 		'properties' => [
@@ -58,14 +83,6 @@ class McpTools
 		/** @var \Closure(): Manager */
 		private readonly \Closure $managerFactory,
 		/**
-		 * Outbound mail (gmail_send_draft, gmail_send_reply) is gated
-		 * behind this flag. Default off; the operator opts in via env GOOGLE_ALLOW_SEND=1.
-		 * When off, those two tools still appear in tools/list but reject the call with a
-		 * clear ToolCallException, so a prompt-injected model can't quietly trigger a send
-		 * even if the host auto-approves the call.
-		 */
-		private readonly bool $allowSend = false,
-		/**
 		 * Filesystem sandbox for attachment download / upload (env
 		 * GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
 		 * and any draft/send call with a non-empty attachments[]) refuses with a clear error.
@@ -84,16 +101,6 @@ class McpTools
 	private function getManager(): Manager
 	{
 		return $this->manager ??= ManagerResolver::resolve($this->managerFactory);
-	}
-
-
-	private function requireSendAllowed(): void
-	{
-		if (!$this->allowSend) {
-			throw new ToolCallException(
-				'Outbound send is disabled in this server config. Set GOOGLE_ALLOW_SEND=1 in the .mcp.json env to enable gmail_send_draft and gmail_send_reply.',
-			);
-		}
 	}
 
 
@@ -181,6 +188,7 @@ class McpTools
 	 * @param ?string $pageToken  Token from a previous response's nextPageToken; null for the first page
 	 * @return array{untrustedContent: true, threads: list<array<string, mixed>>, nextPageToken: ?string}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_search_threads',
 		title: 'Search Gmail threads',
@@ -240,6 +248,7 @@ class McpTools
 	 * @param int $maxMessages  Max number of (most recent) messages to return (1..200)
 	 * @return array{untrustedContent: true, threadId: string, totalMessageCount: int, truncated: bool, messages: list<array<string, mixed>>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_get_thread',
 		title: 'Get Gmail thread',
@@ -306,6 +315,7 @@ class McpTools
 	 * @param string $query  Gmail search query (e.g. "to:foo@bar.cz"); empty string lists all drafts
 	 * @return array{untrustedContent: true, drafts: list<array<string, mixed>>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_list_drafts',
 		title: 'List Gmail drafts',
@@ -341,6 +351,7 @@ class McpTools
 	 * @param string $threadId  Thread to inspect
 	 * @return array{untrustedContent: true, threadId: string, attachments: list<array{messageId: string, attachmentId: string, filename: string, mimeType: string, sizeBytes: int}>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_list_attachments',
 		title: 'List thread attachments',
@@ -386,6 +397,7 @@ class McpTools
 	 * @param string $attachmentId  Attachment ID (from gmail_list_attachments)
 	 * @return array{savedPath: string, bytes: int}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_get_attachment',
 		title: 'Download Gmail attachment',
@@ -411,6 +423,7 @@ class McpTools
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
 	 * @return array{draftId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_create_draft_reply',
 		title: 'Create draft reply',
@@ -441,6 +454,7 @@ class McpTools
 	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_create_draft',
 		title: 'Create draft email',
@@ -481,6 +495,7 @@ class McpTools
 	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_update_draft',
 		title: 'Update draft email',
@@ -518,6 +533,7 @@ class McpTools
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
 	 * @return array{draftId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_update_draft_reply',
 		title: 'Update draft reply',
@@ -541,12 +557,10 @@ class McpTools
 	 * Send an existing draft (created earlier via gmail_create_draft or gmail_create_draft_reply).
 	 * Prefer this over gmail_send_reply when the user should review the draft first.
 	 *
-	 * Outbound send is opt-in: this tool refuses the call when the server was started
-	 * without GOOGLE_ALLOW_SEND=1 (see McpTools::__construct).
-	 *
 	 * @param string $draftId  Draft ID returned by gmail_create_draft*
 	 * @return array{messageId: string}
 	 */
+	#[Access(AccessLevel::Send)]
 	#[McpTool(
 		name: 'gmail_send_draft',
 		title: 'Send Gmail draft',
@@ -554,7 +568,6 @@ class McpTools
 	)]
 	public function sendDraft(string $draftId): array
 	{
-		$this->requireSendAllowed();
 		return ['messageId' => $this->getManager()->sendDraft($draftId)];
 	}
 
@@ -566,6 +579,7 @@ class McpTools
 	 * @param string $draftId  Draft ID returned by gmail_create_draft*
 	 * @return array{deleted: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_delete_draft',
 		title: 'Delete Gmail draft',
@@ -583,14 +597,12 @@ class McpTools
 	 * auto-derivation as gmail_create_draft_reply. Prefer the create-draft + send-draft
 	 * flow when the user has not explicitly approved sending.
 	 *
-	 * Outbound send is opt-in: this tool refuses the call when the server was started
-	 * without GOOGLE_ALLOW_SEND=1 (see McpTools::__construct).
-	 *
 	 * @param string $threadId  Thread to reply into
 	 * @param string $body  Plain-text body
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
 	 * @return array{messageId: string}
 	 */
+	#[Access(AccessLevel::Send)]
 	#[McpTool(
 		name: 'gmail_send_reply',
 		title: 'Send Gmail reply',
@@ -603,7 +615,6 @@ class McpTools
 		array $attachments = [],
 	): array
 	{
-		$this->requireSendAllowed();
 		return ['messageId' => $this->getManager()->sendReply($threadId, $body, $this->validateAttachments($attachments))];
 	}
 
@@ -617,6 +628,7 @@ class McpTools
 	 * @param string $threadId  Thread to archive
 	 * @return array{archived: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_archive_thread',
 		title: 'Archive Gmail thread',
@@ -637,6 +649,7 @@ class McpTools
 	 * @param string $threadId  Thread to trash
 	 * @return array{trashed: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_trash_thread',
 		title: 'Trash Gmail thread',
@@ -656,6 +669,7 @@ class McpTools
 	 * @param string $threadId  Thread to restore from Trash
 	 * @return array{untrashed: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_untrash_thread',
 		title: 'Restore Gmail thread from Trash',
@@ -674,6 +688,7 @@ class McpTools
 	 *
 	 * @return list<array{id: string, name: string, type: string}>
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'gmail_list_labels',
 		title: 'List Gmail labels',
@@ -692,6 +707,7 @@ class McpTools
 	 * @param list<string> $labelIds  Label IDs to add (look them up via gmail_list_labels)
 	 * @return array{threadId: string, added: list<string>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_label_thread',
 		title: 'Add labels to thread',
@@ -716,6 +732,7 @@ class McpTools
 	 * @param list<string> $labelIds  Label IDs to remove
 	 * @return array{threadId: string, removed: list<string>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_unlabel_thread',
 		title: 'Remove labels from thread',
@@ -742,6 +759,7 @@ class McpTools
 	 * @param list<string> $labelIds  Label IDs to add (look them up via gmail_list_labels)
 	 * @return array{messageId: string, added: list<string>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_label_message',
 		title: 'Add labels to message',
@@ -766,6 +784,7 @@ class McpTools
 	 * @param list<string> $labelIds  Label IDs to remove
 	 * @return array{messageId: string, removed: list<string>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'gmail_unlabel_message',
 		title: 'Remove labels from message',

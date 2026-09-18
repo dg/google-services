@@ -2,16 +2,32 @@
 
 namespace DG\Google\Calendar;
 
+use DG\Google\Access;
+use DG\Google\AccessLevel;
 use DG\Google\ManagerResolver;
 use Google\Service\Calendar\Event as GoogleEvent;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
-use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 
 
 class McpTools
 {
+	/** Part of the server instructions, sent when any Calendar tool is enabled */
+	public const Instructions = <<<'TEXT'
+		CALENDAR HINTS:
+		  - calendar_create_event only creates the event, it never invites anybody.
+		TEXT;
+
+	/** Appended to the instructions only when calendar_add_attendees is enabled */
+	public const SendInstructions = <<<'TEXT'
+		  - Guests are added by calendar_add_attendees, which emails them, so call it only when the
+		    user asked for the invitation.
+		TEXT;
+
+	/** Part of the SECURITY block, sent when any Calendar tool is enabled */
+	public const UntrustedContent = '  - Calendar: event summaries, descriptions and locations, attendee and calendar names.';
+
 	private ?Manager $manager = null;
 
 
@@ -23,13 +39,6 @@ class McpTools
 	public function __construct(
 		/** @var \Closure(): Manager */
 		private \Closure $managerFactory,
-		/**
-		 * Calendar writes (calendar_create_event) are gated behind this flag,
-		 * mirroring Gmail's send gate. Default off; the operator opts in via env
-		 * GOOGLE_ALLOW_CALENDAR_WRITE=1. When off, the write tools still appear in tools/list but reject
-		 * the call with a clear ToolCallException, so a prompt-injected model can't quietly create events.
-		 */
-		private readonly bool $allowWrite = false,
 	) {
 	}
 
@@ -37,16 +46,6 @@ class McpTools
 	private function getManager(): Manager
 	{
 		return $this->manager ??= ManagerResolver::resolve($this->managerFactory);
-	}
-
-
-	private function requireWriteAllowed(): void
-	{
-		if (!$this->allowWrite) {
-			throw new ToolCallException(
-				'Calendar write is disabled in this server config. Set GOOGLE_ALLOW_CALENDAR_WRITE=1 in the .mcp.json env to enable calendar_create_event.',
-			);
-		}
 	}
 
 
@@ -73,6 +72,7 @@ class McpTools
 	 * @param int $maxResults  Max events to return (1..2500)
 	 * @return array{untrustedContent: true, calendarId: string, events: list<array<string, mixed>>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'calendar_list_events',
 		title: 'List calendar events',
@@ -111,6 +111,7 @@ class McpTools
 	 *
 	 * @return array{untrustedContent: true, calendars: list<array{id: string, summary: ?string, description: ?string, primary: bool}>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'calendar_list_calendars',
 		title: 'List calendars',
@@ -137,11 +138,8 @@ class McpTools
 	/**
 	 * Create a calendar event. Times accept ISO 8601 / RFC 3339; include an offset (e.g.
 	 * "2026-06-01T10:00:00+02:00") or pass timeZone (IANA, e.g. "Europe/Prague") to disambiguate a
-	 * bare local time. Optionally attach a Google Meet link, invite attendees, add a reminder, and
-	 * repeat the event daily. Guests cannot invite others or see the guest list (set server-side).
-	 *
-	 * Writing is opt-in: this tool refuses the call when the server was started without
-	 * GOOGLE_ALLOW_CALENDAR_WRITE=1.
+	 * bare local time. Optionally attach a Google Meet link, add a reminder, and repeat the event
+	 * daily. To invite guests, call calendar_add_attendees afterwards.
 	 *
 	 * @param string $summary  Event title
 	 * @param string $start  Start time (ISO 8601)
@@ -149,7 +147,6 @@ class McpTools
 	 * @param ?string $timeZone  IANA time zone applied to start/end when they carry no offset; null = server default
 	 * @param ?string $location  Optional location
 	 * @param ?string $description  Optional description
-	 * @param list<string> $attendees  Attendee email addresses to invite
 	 * @param bool $createMeeting  Attach a Google Meet conference link
 	 * @param int $reminderMinutes  Popup reminder this many minutes before start; 0 = none
 	 * @param int $repeatCount  Number of daily occurrences (1 = single event)
@@ -157,6 +154,7 @@ class McpTools
 	 * @param string $calendarId  Target calendar ("primary" or an ID from calendar_list_calendars)
 	 * @return array{id: string, htmlLink: ?string, hangoutLink: ?string, event: array<string, mixed>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'calendar_create_event',
 		title: 'Create calendar event',
@@ -169,8 +167,6 @@ class McpTools
 		?string $timeZone = null,
 		?string $location = null,
 		?string $description = null,
-		#[Schema(items: ['type' => 'string', 'format' => 'email'])]
-		array $attendees = [],
 		bool $createMeeting = false,
 		#[Schema(minimum: 0)]
 		int $reminderMinutes = 0,
@@ -181,7 +177,6 @@ class McpTools
 		string $calendarId = 'primary',
 	): array
 	{
-		$this->requireWriteAllowed();
 		if (trim($summary) === '') {
 			throw new \InvalidArgumentException('summary must not be empty.');
 		}
@@ -199,13 +194,7 @@ class McpTools
 			$event->reminder = "+$reminderMinutes minutes";
 		}
 
-		$mgr = $this->getManager();
-		$created = $mgr->createEvent($event, $calendarId);
-		if ($attendees !== []) {
-			$mgr->addAttendees((string) $created->getId(), $attendees, sendNotifications: true, calendarId: $calendarId);
-			$created = $mgr->getEvent((string) $created->getId(), $calendarId);
-		}
-
+		$created = $this->getManager()->createEvent($event, $calendarId);
 		return [
 			'id' => (string) $created->getId(),
 			'htmlLink' => $created->getHtmlLink(),
@@ -217,7 +206,7 @@ class McpTools
 
 	/**
 	 * Invite one or more attendees to an existing event. Only newly-added attendees are emailed (the
-	 * existing guest list is not re-notified). Writing is opt-in (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 * existing guest list is not re-notified).
 	 *
 	 * @param string $eventId  Event to modify (from calendar_list_events)
 	 * @param list<string> $attendees  Attendee email addresses to invite
@@ -225,6 +214,7 @@ class McpTools
 	 * @param string $calendarId  Calendar the event lives on
 	 * @return array{eventId: string, added: list<string>}
 	 */
+	#[Access(AccessLevel::Send)]
 	#[McpTool(
 		name: 'calendar_add_attendees',
 		title: 'Add event attendees',
@@ -238,21 +228,20 @@ class McpTools
 		string $calendarId = 'primary',
 	): array
 	{
-		$this->requireWriteAllowed();
 		$this->getManager()->addAttendees($eventId, $attendees, $sendNotifications, $calendarId);
 		return ['eventId' => $eventId, 'added' => $attendees];
 	}
 
 
 	/**
-	 * Remove one or more attendees from an existing event (no notifications are sent). Writing is
-	 * opt-in (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 * Remove one or more attendees from an existing event (no notifications are sent).
 	 *
 	 * @param string $eventId  Event to modify
 	 * @param list<string> $attendees  Attendee email addresses to remove
 	 * @param string $calendarId  Calendar the event lives on
 	 * @return array{eventId: string, removed: list<string>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'calendar_remove_attendees',
 		title: 'Remove event attendees',
@@ -265,21 +254,20 @@ class McpTools
 		string $calendarId = 'primary',
 	): array
 	{
-		$this->requireWriteAllowed();
 		$this->getManager()->removeAttendees($eventId, $attendees, $calendarId);
 		return ['eventId' => $eventId, 'removed' => $attendees];
 	}
 
 
 	/**
-	 * Replace an event's description (no notifications are sent). Writing is opt-in
-	 * (GOOGLE_ALLOW_CALENDAR_WRITE=1).
+	 * Replace an event's description (no notifications are sent).
 	 *
 	 * @param string $eventId  Event to modify
 	 * @param string $description  New description text
 	 * @param string $calendarId  Calendar the event lives on
 	 * @return array{eventId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'calendar_update_event_description',
 		title: 'Update event description',
@@ -287,7 +275,6 @@ class McpTools
 	)]
 	public function updateEventDescription(string $eventId, string $description, string $calendarId = 'primary'): array
 	{
-		$this->requireWriteAllowed();
 		$this->getManager()->updateDescription($eventId, $description, $calendarId);
 		return ['eventId' => $eventId];
 	}

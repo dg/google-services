@@ -30,9 +30,10 @@ re-attached.
 `BroaderScopes` encodes subsumption (`mail.google.com` subsumes `gmail.modify`,
 `calendar` subsumes `calendar.readonly`, `drive` subsumes `presentations`), and
 `assertScopesGranted` fails fast when the token has fewer scopes than the code needs —
-except a legacy token with **no `scope` field is left unchecked**. `Scopes::McpServer`
-is the single source of truth, shared by `server.php` and the demo.
+except a legacy token with **no `scope` field is left unchecked**. `Scopes::Services`
+(scope per service) is the single source of truth, shared by `server.php` and the demo;
+both request only the scopes of the services `GOOGLE_TOOLS` enables.
 
-**Granting a scope does not enable writes.** Even with the `CALENDAR` scope, the actual
-writes are gated at the **tool layer** (`GOOGLE_ALLOW_CALENDAR_WRITE` etc., see
-mcp-plumbing.md) — an easy detail to miss.
+**Granting a scope does not enable writes.** Even with the `CALENDAR` scope, which tools
+the model gets is decided at the **tool layer** by `GOOGLE_TOOLS` (see mcp-plumbing.md)
+— an easy detail to miss.
