@@ -12,7 +12,7 @@ function makeToolsWithSandbox(): array
 {
 	$dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'gs-sandbox-' . bin2hex(random_bytes(4));
 	mkdir($dir);
-	$tools = new McpTools(static fn() => throw new RuntimeException('factory must not run'), allowSend: false, filesDir: $dir);
+	$tools = new McpTools(static fn() => throw new RuntimeException('factory must not run'), filesDir: $dir);
 	return [$tools, realpath($dir)];
 }
 
@@ -26,12 +26,12 @@ function callValidateAttachments(McpTools $tools, array $attachments): mixed
 test('constructor does NOT validate the files dir (must not crash the transport at wiring time)', function () {
 	// A non-existent dir must not throw here — that would crash the stdio server before the MCP
 	// handshake. Construction succeeds; the error is deferred to the first attachment-tool call.
-	Assert::noError(fn() => new McpTools(static fn() => throw new RuntimeException, false, '/no/such/dir/ever'));
+	Assert::noError(fn() => new McpTools(static fn() => throw new RuntimeException, '/no/such/dir/ever'));
 });
 
 
 test('a configured-but-non-existent files dir surfaces as a ToolCallException at call time', function () {
-	$tools = new McpTools(static fn() => throw new RuntimeException, false, '/no/such/dir/ever');
+	$tools = new McpTools(static fn() => throw new RuntimeException, '/no/such/dir/ever');
 	Assert::exception(
 		fn() => $tools->getAttachment('msg', 'att'),
 		ToolCallException::class,

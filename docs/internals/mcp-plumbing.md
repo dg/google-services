@@ -6,7 +6,7 @@ The guard decorates the SDK `ReferenceHandler` and centralizes **all** conversio
 errors into `ToolCallException`, so the `McpTools` methods carry no per-call
 try/catch. The catch order is a contract — **first match wins**:
 
-1. `ToolCallException` → passthrough (already shaped by a tool: an auth/send gate, a
+1. `ToolCallException` → passthrough (already shaped by a tool: a re-auth hint, a
    sandbox rejection);
 2. `GoogleException` → `"Google API error: "` + the extracted upstream message
    (`errors[0].message`);
@@ -23,19 +23,32 @@ concretely-typed manager cache) that catches `AuthException` → `ToolCallExcept
 a uniform "re-authorize via …" hint; the `$this->manager ??= ManagerResolver::resolve(
 $this->managerFactory)` idiom is copied in all three `McpTools`.
 
-## Discovery, and write-gating as a prompt-injection defense
+## Tool selection as a prompt-injection defense
 
-Tools are exposed via `#[McpTool]`/`#[Schema]` attributes discovered by
-`setDiscovery(src, ['*Tools.php'])`. Two security-relevant, non-local design choices:
+Tools are declared by `#[McpTool]`/`#[Schema]` attributes plus a mandatory
+`#[Access(AccessLevel::…)]` (read / write / send). `server.php` does **not** use the
+SDK's `setDiscovery()`: `ToolSelection::discover()` finds all tools,
+`ToolSelection::select()` applies the `GOOGLE_TOOLS` rules, and `ToolLoader` registers
+only the selected ones. Security-relevant, non-local design choices:
 
-- **Write-gating stays in `tools/list`.** A gated write tool is still advertised; the
-  gate rejects the *call* only. This is intentional — "a prompt-injected model can't
-  quietly trigger a send even if the host auto-approves" — via `requireSendAllowed()`
-  (Gmail) / `requireWriteAllowed()` (Calendar). **Slides has no gate — it writes
-  freely.**
+- **A disabled tool does not exist for the model.** It is absent from `tools/list` and a
+  call to it fails as an unknown tool; there is no per-call gate inside tool bodies. The
+  instructions name what is disabled, so the model can tell the user how to enable it.
+- **`send` = something reaches third parties**, and it is never granted implicitly: a
+  bare service means up to `write`, and a `*` pattern skips send-level tools. A tool
+  must therefore not hide a send behind a parameter; that is why
+  `calendar_create_event` has no attendees (guests go through `calendar_add_attendees`).
+- **A broken `GOOGLE_TOOLS` stops the server** before the handshake. Unlike a missing
+  `secret.json` (deferred to the first call, see auth.md) a typo in a rule could expose
+  more tools than intended, so failing loudly is the safe side.
 - **Every read tool wraps its result as `untrustedContent: true`**, matched by a
   SECURITY block in the server instructions — the prompt-injection flag for content the
-  model must not treat as instructions.
+  model must not treat as instructions. `server.php` assembles the instructions from the
+  `UntrustedContent` / `Instructions` / `WriteInstructions` / `SendInstructions`
+  constants of the enabled services, so no hint names a tool the selection left out.
+- **Scopes follow the selection:** the `Authenticator` requires only the scopes of
+  enabled services (`Scopes::forServices()`), so a Slides-only server runs on a token
+  that cannot touch the mailbox at all.
 
 `Meet` is latent/dead: `Meet\Manager` exists (`createSpace`) but has **no `McpTools`**,
 so discovery never exposes it.
