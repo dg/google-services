@@ -2,7 +2,7 @@
 
 namespace DG\Google\Slides;
 
-use DG\Google\ManagerResolver;
+use DG\Google\{Access, AccessLevel, ManagerResolver};
 use Google\Service\Slides\Page;
 use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Schema\ToolAnnotations;
@@ -11,6 +11,45 @@ use function count;
 
 class McpTools
 {
+	/** Part of the server instructions, sent when any Slides tool is enabled */
+	public const Instructions = <<<'TEXT'
+		SLIDES HINTS:
+		  - Call slides_get_presentation first to discover slide and element object IDs, then
+		    address everything by object ID (never by position number, which shifts on edits). For a
+		    large deck, call it with outline=true first (object IDs only, no text), then fetch the text
+		    you need with slideNumbers — a plain call returns every slide's text and can be large.
+		    slides_get_presentation returns TEXT only (auto-text such as dates/slide numbers is folded in
+		    as ordinary text — don't mistake those object IDs for text boxes); to see inline style (which
+		    runs are bold/italic/colored) call slides_get_text_styles.
+		TEXT;
+
+	/** Appended to the instructions only when the write tools are enabled */
+	public const WriteInstructions = <<<'TEXT'
+		  - Editing text: to overwrite one shape's whole text without losing inline formatting use
+		    slides_set_shape_text (it diffs and keeps unchanged runs' styling); to substitute a word
+		    across the deck use slides_replace_all_text; to append use slides_insert_text. For a soft
+		    line break inside a paragraph put the two-character sequence \v in the text (the server
+		    converts it to U+000B) — a raw vertical tab does not survive the MCP transport; a real
+		    newline starts a new paragraph.
+		  - Styling a keyword: when you are REWRITING the text, pass the styles list to
+		    slides_set_shape_text — it sets text and styling in one deterministic step and clears any
+		    style the rewritten run would otherwise inherit from the preceding character (without it, text
+		    edited right after a bold word silently turns bold). When the text is NOT changing, use
+		    slides_format_text. Both match a literal substring and compute the UTF-16 range for you — never
+		    count character offsets by hand.
+		  - Slide-level ops: slides_add_slide / slides_duplicate_slide add slides, slides_move_slide reorders,
+		    slides_delete_object deletes a slide or element, slides_set_slide_visibility hides/shows a slide
+		    (slides_get_presentation reports each slide's `hidden` state). slides_add_text_box creates a new
+		    text box (position/size in points) to then fill with the text tools.
+		  - Still NOT supported (do these in the Slides UI): changing a slide's layout, creating non-textbox
+		    shapes, paragraph style (line spacing, space above/below, bullet style), fill/background colors,
+		    and animations. Through the server you edit text and inline character style (bold/italic/
+		    underline/size/color), and manage slides and text boxes as listed above.
+		TEXT;
+
+	/** Part of the SECURITY block, sent when any Slides tool is enabled */
+	public const UntrustedContent = '  - Slides: slide titles, body text, table cells, speaker notes.';
+
 	private ?Manager $manager = null;
 
 
@@ -64,6 +103,7 @@ class McpTools
 	 * @param list<int> $slideNumbers  1-based slide positions to include; empty = all slides
 	 * @return array{untrustedContent: true, presentationId: string, title: ?string, revisionId: ?string, slideCount: int, outline: bool, slides: list<array{slideNumber: int, objectId: string, hidden: bool, elements: list<array{objectId: string, isTitle: bool, placeholderType?: string, text?: string}>, notes?: list<array{objectId: string, text?: string}>}>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'slides_get_presentation',
 		title: 'Read a presentation',
@@ -121,6 +161,7 @@ class McpTools
 	 * @param string $objectId  Object ID of the target shape (from slides_get_presentation)
 	 * @return array{objectId: string, runs: list<array{start: int, end: int, content: string, bold: bool, italic: bool, underline: bool, fontSizePt: ?float, color: ?string}>}
 	 */
+	#[Access(AccessLevel::Read)]
 	#[McpTool(
 		name: 'slides_get_text_styles',
 		title: 'Inspect a shape\'s inline text styles',
@@ -148,6 +189,7 @@ class McpTools
 	 * @param ?int $insertionIndex  Zero-based position; null = append at the end
 	 * @return array{slideObjectId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_add_slide',
 		title: 'Add a slide',
@@ -183,6 +225,7 @@ class McpTools
 	 * @param float $height  Box height in points
 	 * @return array{objectId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_add_text_box',
 		title: 'Add a text box',
@@ -224,6 +267,7 @@ class McpTools
 	 * @param string $slideObjectId  Object ID of the slide to duplicate (from slides_get_presentation)
 	 * @return array{slideObjectId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_duplicate_slide',
 		title: 'Duplicate a slide',
@@ -247,6 +291,7 @@ class McpTools
 	 * @param int $insertionIndex  Zero-based target position in the current slide order
 	 * @return array{slideObjectId: string, insertionIndex: int}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_move_slide',
 		title: 'Move a slide',
@@ -273,6 +318,7 @@ class McpTools
 	 * @param string $objectId  Object ID of the slide or element to delete
 	 * @return array{deleted: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_delete_object',
 		title: 'Delete a slide or element',
@@ -295,6 +341,7 @@ class McpTools
 	 * @param bool $hidden  true to hide (skip) the slide, false to show it
 	 * @return array{slideObjectId: string, hidden: bool}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_set_slide_visibility',
 		title: 'Hide or show a slide',
@@ -327,6 +374,7 @@ class McpTools
 	 *   the edit is rejected if the deck changed since
 	 * @return array{objectId: string}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_insert_text',
 		title: 'Insert text',
@@ -375,6 +423,7 @@ class McpTools
 	 *   the edit is rejected if the deck changed since — recommended here, as the diff is computed against a prior read
 	 * @return array{objectId: string, styles?: list<array{substring: string, occurrences: int}>}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_set_shape_text',
 		title: 'Set a shape\'s text',
@@ -425,6 +474,7 @@ class McpTools
 	 *   rejected if the deck changed since
 	 * @return array{occurrencesChanged: int}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_replace_all_text',
 		title: 'Replace all text',
@@ -474,6 +524,7 @@ class McpTools
 	 *   rejected if the deck changed since
 	 * @return array{occurrencesStyled: int}
 	 */
+	#[Access(AccessLevel::Write)]
 	#[McpTool(
 		name: 'slides_format_text',
 		title: 'Format text in a shape',

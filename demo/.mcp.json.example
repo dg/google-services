@@ -5,6 +5,7 @@
 			"args": ["/path/to/GoogleServices/server.php"],
 			"env": {
 				"GOOGLE_TOKEN_DIR": "/path/to/GoogleServices/demo/tokens",
+				"GOOGLE_TOOLS": "gmail, calendar:read, slides",
 				"GOOGLE_FILES_DIR": "/path/to/GoogleServices/demo/files"
 			}
 		}

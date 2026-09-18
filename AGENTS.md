@@ -42,8 +42,8 @@ composer phpstan
 ```
 
 **Server env vars** (the host passes these via `.mcp.json`): `GOOGLE_TOKEN_DIR`
-(OAuth token dir), `GOOGLE_ALLOW_SEND=1` (enables outbound `gmail_send_*`),
-`GOOGLE_ALLOW_CALENDAR_WRITE=1`, `GOOGLE_FILES_DIR` (attachment sandbox).
+(OAuth token dir), `GOOGLE_TOOLS` (which tools are exposed, e.g. `slides` or
+`gmail:send, calendar:read`; see `ToolSelection`), `GOOGLE_FILES_DIR` (attachment sandbox).
 
 ## Conventions
 
@@ -54,9 +54,10 @@ composer phpstan
   `AuthException` (re-auth states). Tool bodies do **not** catch their own errors -
   `McpToolCallGuard` converts everything centrally.
 - **Classmap autoload gotcha:** after adding a new class file under `src/`, run
-  `composer dump-autoload` or `setDiscovery` won't find a new `#[McpTool]`.
-- After adding/renaming a tool, update `tests/McpTools.discovery.phpt`. Tool names,
-  descriptions, and JSON schemas all consume the agent's context - keep them tight.
+  `composer dump-autoload` or discovery won't find a new `#[McpTool]`.
+- Every tool carries `#[Access(AccessLevel::…)]`; `send` means something reaches third
+  parties. After adding/renaming a tool, update `tests/McpTools.discovery.phpt`. Tool
+  names, descriptions, and JSON schemas all consume the agent's context - keep them tight.
 
 ## Working in this repo
 
@@ -71,10 +72,11 @@ composer phpstan
 - **`McpToolCallGuard` is the single error -> `ToolCallException` converter** and its
   first-match-wins order is a contract. It decorates the SDK's `ReferenceHandler`, so
   it also catches the SDK's own argument casting.
-- **Write tools are opt-in** (`gmail_send_*`, calendar writes) via env flags; a gated
-  tool **stays in `tools/list`** but throws on call - a deliberate prompt-injection
-  defence. Read responses set `untrustedContent: true`. The attachment sandbox is
-  flat with a `realpath` containment check.
+- **`GOOGLE_TOOLS` selects the exposed tools**; a disabled tool is **not registered at
+  all** (absent from `tools/list`), send-level tools are never enabled implicitly, and a
+  broken rule stops the server. Required OAuth scopes follow the enabled services. Read
+  responses set `untrustedContent: true`. The attachment sandbox is flat with a
+  `realpath` containment check. See `mcp-plumbing.md`.
 - **Gmail MIME traps:** attachments capped at 18 MB; headers/bodies are forced to
   valid UTF-8 (or `json_encode` of the whole response breaks); reply-recipient logic
   differs when we sent the last message. See `managers.md`.
