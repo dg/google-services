@@ -271,6 +271,16 @@ class Manager
 	}
 
 
+	public function updateSummary(string $eventId, string $summary, ?string $calendarId = null): void
+	{
+		$patch = new GoogleEvent;
+		$patch->setSummary($summary);
+		$this->service->events->patch($calendarId ?? $this->calendarId, $eventId, $patch, [
+			'sendUpdates' => 'none',
+		]);
+	}
+
+
 	/**
 	 * @param  string[]  $emails
 	 * @return array<string, true>
