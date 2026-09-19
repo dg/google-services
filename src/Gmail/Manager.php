@@ -118,10 +118,7 @@ class Manager
 		$responses = $this->withBatch(function ($batch) use ($stubs): void {
 			foreach ($stubs as $stub) {
 				$batch->add(
-					$this->service->users_drafts->get($this->userId, $stub->getId(), [
-						'format' => 'metadata',
-						'metadataHeaders' => ['To', 'Subject', 'Date'],
-					]),
+					$this->service->users_drafts->get($this->userId, $stub->getId(), ['format' => 'metadata']),
 					$stub->getId(),
 				);
 			}
