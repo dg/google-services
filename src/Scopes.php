@@ -2,9 +2,7 @@
 
 namespace DG\Google;
 
-use Google\Service\Calendar;
-use Google\Service\Gmail;
-use Google\Service\Slides;
+use Google\Service\{Calendar, Gmail, Slides};
 
 
 /**

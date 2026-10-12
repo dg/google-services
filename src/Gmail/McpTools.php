@@ -3,8 +3,7 @@
 namespace DG\Google\Gmail;
 
 use DG\Google\ManagerResolver;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 use Nette\Utils\FileSystem;

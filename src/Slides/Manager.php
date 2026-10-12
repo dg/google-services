@@ -4,34 +4,7 @@ namespace DG\Google\Slides;
 
 use Google;
 use Google\Service\Slides;
-use Google\Service\Slides\AffineTransform;
-use Google\Service\Slides\BatchUpdatePresentationRequest;
-use Google\Service\Slides\BatchUpdatePresentationResponse;
-use Google\Service\Slides\CreateShapeRequest;
-use Google\Service\Slides\CreateSlideRequest;
-use Google\Service\Slides\DeleteObjectRequest;
-use Google\Service\Slides\DeleteTextRequest;
-use Google\Service\Slides\Dimension;
-use Google\Service\Slides\DuplicateObjectRequest;
-use Google\Service\Slides\InsertTextRequest;
-use Google\Service\Slides\LayoutReference;
-use Google\Service\Slides\OptionalColor;
-use Google\Service\Slides\Page;
-use Google\Service\Slides\PageElement;
-use Google\Service\Slides\PageElementProperties;
-use Google\Service\Slides\Presentation;
-use Google\Service\Slides\Range;
-use Google\Service\Slides\ReplaceAllTextRequest;
-use Google\Service\Slides\Request;
-use Google\Service\Slides\Size;
-use Google\Service\Slides\SlideProperties;
-use Google\Service\Slides\SubstringMatchCriteria;
-use Google\Service\Slides\TextElement;
-use Google\Service\Slides\TextStyle;
-use Google\Service\Slides\UpdateSlidePropertiesRequest;
-use Google\Service\Slides\UpdateSlidesPositionRequest;
-use Google\Service\Slides\UpdateTextStyleRequest;
-use Google\Service\Slides\WriteControl;
+use Google\Service\Slides\{AffineTransform, BatchUpdatePresentationRequest, BatchUpdatePresentationResponse, CreateShapeRequest, CreateSlideRequest, DeleteObjectRequest, DeleteTextRequest, Dimension, DuplicateObjectRequest, InsertTextRequest, LayoutReference, OptionalColor, Page, PageElement, PageElementProperties, Presentation, Range, ReplaceAllTextRequest, Request, Size, SlideProperties, SubstringMatchCriteria, TextElement, TextStyle, UpdateSlidePropertiesRequest, UpdateSlidesPositionRequest, UpdateTextStyleRequest, WriteControl};
 use function count, strlen;
 
 

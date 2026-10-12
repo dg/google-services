@@ -3,12 +3,9 @@
 namespace DG\Google\Gmail;
 
 use Google\Http\Batch;
-use Google\Service\Exception as GoogleException;
-use Google\Service\Gmail;
-use Nette\Mail\HtmlComposer;
-use Nette\Mail\Message as MailMessage;
-use Nette\Utils\FileSystem;
-use Nette\Utils\Strings;
+use Google\Service\{Exception as GoogleException, Gmail};
+use Nette\Mail\{HtmlComposer, Message as MailMessage};
+use Nette\Utils\{FileSystem, Strings};
 use function count, in_array, is_string, sprintf, strlen;
 
 
