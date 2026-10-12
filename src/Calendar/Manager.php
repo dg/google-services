@@ -11,7 +11,7 @@ use function count;
 class Manager
 {
 	public const PrimaryCalendar = 'primary';
-	private Calendar $service;
+	private readonly Calendar $service;
 
 
 	public function __construct(

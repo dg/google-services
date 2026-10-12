@@ -27,10 +27,10 @@ use function is_array, sprintf;
  *   - any other \Throwable (domain Exception, TypeError, "method on null", a bare RuntimeException):
  *     wrapped with message + class + file:line so genuine bugs surface with context.
  */
-final class McpToolCallGuard implements ReferenceHandlerInterface
+final readonly class McpToolCallGuard implements ReferenceHandlerInterface
 {
 	public function __construct(
-		private readonly ReferenceHandlerInterface $handler,
+		private ReferenceHandlerInterface $handler,
 	) {
 	}
 

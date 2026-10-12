@@ -26,7 +26,7 @@ class McpTools
 	 *   the call with a clear ToolCallException, so a prompt-injected model can't quietly create events.
 	 */
 	public function __construct(
-		private \Closure $managerFactory,
+		private readonly \Closure $managerFactory,
 		private readonly bool $allowWrite = false,
 	) {
 	}

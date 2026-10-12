@@ -54,7 +54,7 @@ class Manager
 	/** The Slides API measures geometry in EMU (English Metric Units); 1 pt = 12700 EMU. */
 	private const EmuPerPoint = 12700;
 
-	private Slides $service;
+	private readonly Slides $service;
 
 
 	public function __construct(Google\Client $client)
