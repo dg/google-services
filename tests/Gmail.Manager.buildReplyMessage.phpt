@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 
-use DG\Google\Gmail\Manager;
-use DG\Google\Gmail\Message;
-use DG\Google\Gmail\Recipient;
-use DG\Google\Gmail\Thread;
+use DG\Google\Gmail\{Manager, Message, Recipient, Thread};
 use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';

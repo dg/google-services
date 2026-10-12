@@ -1,8 +1,7 @@
 <?php declare(strict_types=1);
 
 use DG\Google\Gmail\Manager;
-use Google\Service\Gmail\MessagePart;
-use Google\Service\Gmail\MessagePartHeader;
+use Google\Service\Gmail\{MessagePart, MessagePartHeader};
 use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';

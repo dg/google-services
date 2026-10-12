@@ -3,8 +3,7 @@
 namespace DG\Google;
 
 use Google\Service\Exception as GoogleException;
-use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\{ElementReference, ReferenceHandlerInterface};
 use Mcp\Exception\ToolCallException;
 use Nette\Utils\AssertionException;
 use function is_array, sprintf;

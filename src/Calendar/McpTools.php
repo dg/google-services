@@ -4,8 +4,7 @@ namespace DG\Google\Calendar;
 
 use DG\Google\ManagerResolver;
 use Google\Service\Calendar\Event as GoogleEvent;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 

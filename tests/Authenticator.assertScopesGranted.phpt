@@ -1,7 +1,6 @@
 <?php declare(strict_types=1);
 
-use DG\Google\Authenticator;
-use DG\Google\AuthException;
+use DG\Google\{Authenticator, AuthException};
 use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';

@@ -4,8 +4,7 @@ namespace DG\Google\Calendar;
 
 use Google;
 use Google\Service\Calendar;
-use Google\Service\Calendar\Event as GoogleEvent;
-use Google\Service\Calendar\EventAttendee;
+use Google\Service\Calendar\{Event as GoogleEvent, EventAttendee};
 use function count;
 
 
