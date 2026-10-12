@@ -6,6 +6,7 @@ use Google;
 use Google\Service\Calendar;
 use Google\Service\Calendar\Event as GoogleEvent;
 use Google\Service\Calendar\EventAttendee;
+use function count;
 
 
 class Manager

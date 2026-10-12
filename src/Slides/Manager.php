@@ -32,6 +32,7 @@ use Google\Service\Slides\UpdateSlidePropertiesRequest;
 use Google\Service\Slides\UpdateSlidesPositionRequest;
 use Google\Service\Slides\UpdateTextStyleRequest;
 use Google\Service\Slides\WriteControl;
+use function count, strlen;
 
 
 class Manager

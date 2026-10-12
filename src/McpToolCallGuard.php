@@ -7,6 +7,7 @@ use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Exception\ToolCallException;
 use Nette\Utils\AssertionException;
+use function is_array, sprintf;
 
 
 /**
