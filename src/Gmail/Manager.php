@@ -423,7 +423,7 @@ class Manager
 		$totalBytes = 0;
 		foreach ($attachments as $att) {
 			// pre-check via filesize() so a single oversize file can't be slurped fully into RAM before the cap throws
-			$size = @filesize($att['path']);
+			$size = @filesize($att['path']); // @ is escalated to exception
 			if ($size === false) {
 				throw new Exception("Attachment is not a readable file: {$att['path']}");
 			}
@@ -583,7 +583,7 @@ class Manager
 		if (!str_contains($value, '=?')) {
 			return $value;
 		}
-		$decoded = @mb_decode_mimeheader($value);
+		$decoded = mb_decode_mimeheader($value);
 		return Strings::fixEncoding($decoded);
 	}
 
@@ -629,7 +629,7 @@ class Manager
 				}
 			} catch (\ValueError) {
 				// charset unknown to mbstring (e.g. some windows-* aliases) — try iconv before giving up
-				$converted = @iconv($charset, 'UTF-8//IGNORE', $bytes);
+				$converted = @iconv($charset, 'UTF-8//IGNORE', $bytes); // @ an unsupported charset triggers a warning
 				if ($converted !== false) {
 					return $converted;
 				}
