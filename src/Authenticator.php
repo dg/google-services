@@ -3,6 +3,7 @@
 namespace DG\Google;
 
 use Google;
+use function array_key_exists, is_array, is_string;
 
 
 class Authenticator

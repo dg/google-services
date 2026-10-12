@@ -7,6 +7,7 @@ use Google\Service\Slides\Page;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Schema\ToolAnnotations;
+use function count;
 
 
 class McpTools

@@ -8,6 +8,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 use Nette\Utils\FileSystem;
+use function count, is_array, strlen;
 
 
 class McpTools
@@ -151,7 +152,7 @@ class McpTools
 	private static function generateAttachmentFilename(string $messageId, string $attachmentId, string $bytes): string
 	{
 		$hash = substr(sha1($messageId . $attachmentId), 0, 12);
-		$mimeType = (new \finfo(\FILEINFO_MIME_TYPE))->buffer($bytes) ?: '';
+		$mimeType = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) ?: '';
 		$ext = self::MimeExtensions[$mimeType] ?? 'bin';
 		return "gm-$hash.$ext";
 	}
@@ -197,7 +198,7 @@ class McpTools
 				'threadId' => $row['threadId'],
 				'subject' => $row['subject'],
 				'sender' => self::recipient($row['sender']),
-				'date' => $row['date']->format(\DATE_ATOM),
+				'date' => $row['date']->format(DATE_ATOM),
 				'snippet' => $row['snippet'],
 				'messageCount' => $row['messageCount'],
 				'labelIds' => $row['labelIds'],
@@ -262,7 +263,7 @@ class McpTools
 			}
 			$messages[] = [
 				'id' => $m->id,
-				'date' => $m->date->format(\DATE_ATOM),
+				'date' => $m->date->format(DATE_ATOM),
 				'sender' => self::recipient($m->sender),
 				'toRecipients' => array_map(self::recipient(...), $m->toRecipients),
 				'ccRecipients' => array_map(self::recipient(...), $m->ccRecipients),
@@ -316,7 +317,7 @@ class McpTools
 				'threadId' => $row['threadId'],
 				'subject' => $row['subject'],
 				'to' => $row['to'],
-				'date' => $row['date']->format(\DATE_ATOM),
+				'date' => $row['date']->format(DATE_ATOM),
 				'snippet' => $row['snippet'],
 			];
 		}
