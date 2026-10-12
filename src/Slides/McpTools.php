@@ -22,7 +22,7 @@ class McpTools
 	 * @param \Closure(): Manager $managerFactory
 	 */
 	public function __construct(
-		private \Closure $managerFactory,
+		private readonly \Closure $managerFactory,
 	) {
 	}
 

@@ -8,7 +8,7 @@ use Google\Service\Meet;
 
 class Manager
 {
-	private Meet $service;
+	private readonly Meet $service;
 
 
 	public function __construct(Google\Client $client)

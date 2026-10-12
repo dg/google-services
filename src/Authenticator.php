@@ -23,8 +23,8 @@ class Authenticator
 
 	public function __construct(
 		/** @var string[] */
-		private array $scopes,
-		private string $tokenDir,
+		private readonly array $scopes,
+		private readonly string $tokenDir,
 	) {
 	}
 
