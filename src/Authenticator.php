@@ -126,7 +126,7 @@ class Authenticator
 				if (isset($newAccessToken['error'])) {
 					// only invalid_grant means the refresh token is permanently revoked/expired
 					if ($newAccessToken['error'] === 'invalid_grant') {
-						@unlink($tokenPath);
+						@unlink($tokenPath); // @ file may not exist
 						throw new AuthException('Refresh token revoked or expired: ' . json_encode($newAccessToken) . '. Re-authorization is required.');
 					}
 					throw new AuthException('Refresh token rejected: ' . json_encode($newAccessToken));
@@ -142,7 +142,7 @@ class Authenticator
 				return $client;
 			}
 
-			@unlink($tokenPath);
+			@unlink($tokenPath); // @ file may not exist
 			throw new AuthException('The access token has expired and no refresh token is available/valid. New authorization is required.');
 		}
 
@@ -236,7 +236,7 @@ class Authenticator
 			throw new AuthException('Failed to save token to file: ' . $tmpPath);
 		}
 		if (!rename($tmpPath, $tokenPath)) {
-			@unlink($tmpPath);
+			@unlink($tmpPath); // @ file may not exist
 			throw new AuthException('Failed to rename token file: ' . $tmpPath . ' -> ' . $tokenPath);
 		}
 	}
