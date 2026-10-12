@@ -18,10 +18,9 @@ class McpTools
 	 * Manager is resolved lazily so OAuth failures (expired/revoked refresh token) surface
 	 * as ToolCallException at the first tool invocation, not as a process crash before the
 	 * MCP handshake.
-	 *
-	 * @param \Closure(): Manager $managerFactory
 	 */
 	public function __construct(
+		/** @var \Closure(): Manager */
 		private readonly \Closure $managerFactory,
 	) {
 	}
@@ -129,10 +128,11 @@ class McpTools
 	)]
 	public function getTextStyles(string $presentationId, string $objectId): array
 	{
-		$runs = $this->getManager()->getElementRuns($presentationId, $objectId);
-		if ($runs === null) {
-			throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
-		}
+		$runs = $this->getManager()
+			->getElementRuns(
+				$presentationId,
+				$objectId,
+			) ?? throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
 		return ['objectId' => $objectId, 'runs' => $runs];
 	}
 
@@ -323,7 +323,8 @@ class McpTools
 	 * @param string $objectId  Object ID of the target shape
 	 * @param string $text  Text to insert (newline = new paragraph; \v = soft line break)
 	 * @param int $insertionIndex  Zero-based insertion offset in UTF-16 code units
-	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: the edit is rejected if the deck changed since
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking:
+	 *   the edit is rejected if the deck changed since
 	 * @return array{objectId: string}
 	 */
 	#[McpTool(
@@ -370,7 +371,8 @@ class McpTools
 	 * @param string $objectId  Object ID of the target shape
 	 * @param string $text  The new text (newline = new paragraph; \v = soft line break; empty = clear)
 	 * @param list<array{substring: string, bold?: bool, italic?: bool, underline?: bool, fontSizePt?: float, color?: string, occurrence?: int}> $styles  Inline styles to apply by literal substring after setting the text; empty = inherit (no styling)
-	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: the edit is rejected if the deck changed since — recommended here, as the diff is computed against a prior read
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking:
+	 *   the edit is rejected if the deck changed since — recommended here, as the diff is computed against a prior read
 	 * @return array{objectId: string, styles?: list<array{substring: string, occurrences: int}>}
 	 */
 	#[McpTool(
@@ -419,7 +421,8 @@ class McpTools
 	 * @param string $find  The text to search for (\v = soft line break)
 	 * @param string $replace  The replacement text (\v = soft line break)
 	 * @param bool $matchCase  Case-sensitive matching
-	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: rejected if the deck changed since
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking:
+	 *   rejected if the deck changed since
 	 * @return array{occurrencesChanged: int}
 	 */
 	#[McpTool(
@@ -467,7 +470,8 @@ class McpTools
 	 * @param ?float $fontSizePt  Font size in points; null = leave unchanged
 	 * @param ?string $color  Text color as hex "#RRGGBB"; null = leave unchanged
 	 * @param ?int $occurrence  Zero-based occurrence to style; null = every occurrence
-	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking: rejected if the deck changed since
+	 * @param ?string $revisionId  Optional revisionId (from slides_get_presentation) for optimistic locking:
+	 *   rejected if the deck changed since
 	 * @return array{occurrencesStyled: int}
 	 */
 	#[McpTool(

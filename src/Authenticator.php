@@ -42,7 +42,7 @@ class Authenticator
 		}
 		try {
 			return $this->client = $this->createClient();
-		} catch (Google\Exception | \LogicException $e) {
+		} catch (Google\Exception|\LogicException $e) {
 			// setAuthConfig() throws InvalidArgumentException when secret.json is missing and a plain
 			// LogicException when it is malformed JSON. Convert both to AuthException so getManager()
 			// renders a re-authorize hint instead of an opaque tool error.

@@ -49,7 +49,7 @@ final readonly class McpToolCallGuard implements ReferenceHandlerInterface
 			throw $e;
 		} catch (GoogleException $e) {
 			throw new ToolCallException('Google API error: ' . self::extractGoogleError($e), 0, $e);
-		} catch (\InvalidArgumentException | AssertionException $e) {
+		} catch (\InvalidArgumentException|AssertionException $e) {
 			throw new ToolCallException($e->getMessage(), 0, $e);
 		} catch (\Throwable $e) {
 			throw new ToolCallException(

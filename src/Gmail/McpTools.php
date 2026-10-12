@@ -16,7 +16,10 @@ class McpTools
 		'type' => 'object',
 		'properties' => [
 			'filename' => ['type' => 'string', 'description' => 'Filename shown to the recipient in the email'],
-			'path' => ['type' => 'string', 'description' => 'Plain filename under GOOGLE_FILES_DIR (no subdirectories, no path separators, no `..`)'],
+			'path' => [
+				'type' => 'string',
+				'description' => 'Plain filename under GOOGLE_FILES_DIR (no subdirectories, no path separators, no `..`)',
+			],
 		],
 		'required' => ['filename', 'path'],
 	];
@@ -41,7 +44,6 @@ class McpTools
 		'text/plain' => 'txt',
 	];
 
-
 	private ?Manager $manager = null;
 
 
@@ -50,26 +52,29 @@ class McpTools
 	 * as ToolCallException at the first tool invocation, not as a process crash before the
 	 * MCP handshake — the host would otherwise see an opaque "server died" with no useful
 	 * message.
-	 *
-	 * @param \Closure(): Manager $managerFactory
-	 * @param bool $allowSend  Outbound mail (gmail_send_draft, gmail_send_reply) is gated
-	 *   behind this flag. Default off; the operator opts in via env GOOGLE_ALLOW_SEND=1.
-	 *   When off, those two tools still appear in tools/list but reject the call with a
-	 *   clear ToolCallException, so a prompt-injected model can't quietly trigger a send
-	 *   even if the host auto-approves the call.
-	 * @param ?string $filesDir  Filesystem sandbox for attachment download / upload (env
-	 *   GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
-	 *   and any draft/send call with a non-empty attachments[]) refuses with a clear error.
-	 *   When set, paths are resolved relative to this directory and `realpath` containment
-	 *   is enforced; symlinks pointing outside the dir are rejected. The path is intentionally
-	 *   NOT validated here: a missing/invalid directory must not crash the stdio transport at
-	 *   wiring time (before McpToolCallGuard is in place) — it surfaces as a ToolCallException
-	 *   from requireFilesDir() at call time instead, so the server still boots and reports the
-	 *   problem diagnosably over JSON-RPC.
 	 */
 	public function __construct(
+		/** @var \Closure(): Manager */
 		private readonly \Closure $managerFactory,
+		/**
+		 * Outbound mail (gmail_send_draft, gmail_send_reply) is gated
+		 * behind this flag. Default off; the operator opts in via env GOOGLE_ALLOW_SEND=1.
+		 * When off, those two tools still appear in tools/list but reject the call with a
+		 * clear ToolCallException, so a prompt-injected model can't quietly trigger a send
+		 * even if the host auto-approves the call.
+		 */
 		private readonly bool $allowSend = false,
+		/**
+		 * Filesystem sandbox for attachment download / upload (env
+		 * GOOGLE_FILES_DIR). When null, every tool that touches the disk (gmail_get_attachment
+		 * and any draft/send call with a non-empty attachments[]) refuses with a clear error.
+		 * When set, paths are resolved relative to this directory and `realpath` containment
+		 * is enforced; symlinks pointing outside the dir are rejected. The path is intentionally
+		 * NOT validated here: a missing/invalid directory must not crash the stdio transport at
+		 * wiring time (before McpToolCallGuard is in place) — it surfaces as a ToolCallException
+		 * from requireFilesDir() at call time instead, so the server still boots and reports the
+		 * problem diagnosably over JSON-RPC.
+		 */
 		private readonly ?string $filesDir = null,
 	) {
 	}
@@ -402,7 +407,8 @@ class McpTools
 	 *
 	 * @param string $threadId  Thread to reply into
 	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
-	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
+	 *   Total raw size capped at 18 MB.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -431,8 +437,10 @@ class McpTools
 	 * @param string $body  Plain-text body (also the text/plain alternative when htmlBody is given)
 	 * @param list<string> $cc  Carbon-copy recipients
 	 * @param list<string> $bcc  Blind-carbon-copy recipients
-	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
-	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
+	 *   Total raw size capped at 18 MB.
+	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain);
+	 *   leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -454,7 +462,15 @@ class McpTools
 		string $htmlBody = '',
 	): array
 	{
-		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments), $htmlBody === '' ? null : $htmlBody);
+		$mail = Manager::createMessage(
+			$to,
+			$subject,
+			$body,
+			$cc,
+			$bcc,
+			$this->validateAttachments($attachments),
+			$htmlBody === '' ? null : $htmlBody,
+		);
 		return ['draftId' => $this->getManager()->saveDraft($mail)];
 	}
 
@@ -471,8 +487,10 @@ class McpTools
 	 * @param string $body  Plain-text body
 	 * @param list<string> $cc  Carbon-copy recipients
 	 * @param list<string> $bcc  Blind-carbon-copy recipients
-	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
-	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain); leave body empty to auto-derive the plaintext alternative from the HTML.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
+	 *   Total raw size capped at 18 MB.
+	 * @param string $htmlBody  Optional HTML body. When set, the mail is multipart (text/html + text/plain);
+	 *   leave body empty to auto-derive the plaintext alternative from the HTML.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -495,7 +513,15 @@ class McpTools
 		string $htmlBody = '',
 	): array
 	{
-		$mail = Manager::createMessage($to, $subject, $body, $cc, $bcc, $this->validateAttachments($attachments), $htmlBody === '' ? null : $htmlBody);
+		$mail = Manager::createMessage(
+			$to,
+			$subject,
+			$body,
+			$cc,
+			$bcc,
+			$this->validateAttachments($attachments),
+			$htmlBody === '' ? null : $htmlBody,
+		);
 		return ['draftId' => $this->getManager()->updateDraft($draftId, $mail)];
 	}
 
@@ -509,7 +535,8 @@ class McpTools
 	 * @param string $draftId  Draft ID returned by gmail_create_draft_reply / gmail_list_drafts
 	 * @param string $threadId  Thread the draft replies into (from gmail_list_drafts)
 	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
-	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
+	 *   Total raw size capped at 18 MB.
 	 * @return array{draftId: string}
 	 */
 	#[McpTool(
@@ -582,7 +609,8 @@ class McpTools
 	 *
 	 * @param string $threadId  Thread to reply into
 	 * @param string $body  Plain-text body
-	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR. Total raw size capped at 18 MB.
+	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
+	 *   Total raw size capped at 18 MB.
 	 * @return array{messageId: string}
 	 */
 	#[McpTool(

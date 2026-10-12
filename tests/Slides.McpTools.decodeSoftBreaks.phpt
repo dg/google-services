@@ -13,11 +13,11 @@ require __DIR__ . '/bootstrap.php';
 $decode = (new ReflectionMethod(McpTools::class, 'decodeSoftBreaks'))
 	->getClosure();
 
-$VT = "\x0b";
+$vt = "\x0b";
 
 
-test('\v becomes U+000B', function () use ($decode, $VT) {
-	Assert::same("- a{$VT}- b{$VT}- c", $decode('- a\v- b\v- c'));
+test('\v becomes U+000B', function () use ($decode, $vt) {
+	Assert::same("- a{$vt}- b{$vt}- c", $decode('- a\v- b\v- c'));
 });
 
 
@@ -43,7 +43,7 @@ test('text without backslashes is returned verbatim', function () use ($decode) 
 });
 
 
-test('mixed: real soft break next to an escaped one', function () use ($decode, $VT) {
+test('mixed: real soft break next to an escaped one', function () use ($decode, $vt) {
 	// "a\vb" -> soft break; "c\\vd" -> literal \v
-	Assert::same("a{$VT}b and c\\vd", $decode('a\vb and c\\\vd'));
+	Assert::same("a{$vt}b and c\\vd", $decode('a\vb and c\\\vd'));
 });

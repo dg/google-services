@@ -364,7 +364,7 @@ class Manager
 			throw new Exception("Cannot determine reply recipients: the last message in thread $thread->id has no usable To or Reply-To address.");
 		}
 		$ccs = array_values(array_diff(
-			self::extractEmails(array_merge($last->toRecipients, $last->ccRecipients)),
+			self::extractEmails([...$last->toRecipients, ...$last->ccRecipients]),
 			$tos,
 			[$myAddress],
 		));
