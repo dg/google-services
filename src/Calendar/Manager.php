@@ -127,7 +127,7 @@ class Manager
 			return;
 		}
 
-		$merged = array_merge($existing, $newAttendees);
+		$merged = [...$existing, ...$newAttendees];
 
 		if (!$sendNotifications || !$existing) {
 			$event->setAttendees($merged);

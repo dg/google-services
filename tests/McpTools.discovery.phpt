@@ -178,7 +178,9 @@ Assert::exception(
 
 // Calendar write is gated the same way: with allowWrite off (the default) calendar_create_event
 // fails fast without ever resolving a Manager.
-$calDisabled = new DG\Google\Calendar\McpTools(static fn() => throw new RuntimeException('factory must not run when calendar write is disabled'));
+$calDisabled = new DG\Google\Calendar\McpTools(
+	static fn() => throw new RuntimeException('factory must not run when calendar write is disabled'),
+);
 Assert::exception(
 	fn() => $calDisabled->createEvent('Meeting', '2026-06-01T10:00:00+02:00', '2026-06-01T11:00:00+02:00'),
 	ToolCallException::class,

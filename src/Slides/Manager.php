@@ -4,7 +4,12 @@ namespace DG\Google\Slides;
 
 use Google;
 use Google\Service\Slides;
-use Google\Service\Slides\{AffineTransform, BatchUpdatePresentationRequest, BatchUpdatePresentationResponse, CreateShapeRequest, CreateSlideRequest, DeleteObjectRequest, DeleteTextRequest, Dimension, DuplicateObjectRequest, InsertTextRequest, LayoutReference, OptionalColor, Page, PageElement, PageElementProperties, Presentation, Range, ReplaceAllTextRequest, Request, Size, SlideProperties, SubstringMatchCriteria, TextElement, TextStyle, UpdateSlidePropertiesRequest, UpdateSlidesPositionRequest, UpdateTextStyleRequest, WriteControl};
+use Google\Service\Slides\{
+	AffineTransform, BatchUpdatePresentationRequest, BatchUpdatePresentationResponse, CreateShapeRequest, CreateSlideRequest,
+	DeleteObjectRequest, DeleteTextRequest, Dimension, DuplicateObjectRequest, InsertTextRequest, LayoutReference, OptionalColor, Page,
+	PageElement, PageElementProperties, Presentation, Range, ReplaceAllTextRequest, Request, Size, SlideProperties, SubstringMatchCriteria,
+	TextElement, TextStyle, UpdateSlidePropertiesRequest, UpdateSlidesPositionRequest, UpdateTextStyleRequest, WriteControl,
+};
 use function count, strlen;
 
 
@@ -249,10 +254,9 @@ class Manager
 		?string $requiredRevisionId = null,
 	): array
 	{
-		$existing = $this->getElementText($presentationId, $objectId);
-		if ($existing === null) {
-			throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
-		}
+		$existing = $this->getElementText(
+			$presentationId, $objectId,
+		) ?? throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
 
 		[$requests, $report] = self::setShapeRequests($objectId, $existing, $text, $styles);
 		if ($requests) {
@@ -309,7 +313,11 @@ class Manager
 			if ($newTrail < $existingTrail) {
 				$requests[] = new Request(['deleteText' => new DeleteTextRequest([
 					'objectId' => $objectId,
-					'textRange' => new Range(['type' => 'FIXED_RANGE', 'startIndex' => $coreLen + $newTrail, 'endIndex' => $coreLen + $existingTrail]),
+					'textRange' => new Range([
+						'type' => 'FIXED_RANGE',
+						'startIndex' => $coreLen + $newTrail,
+						'endIndex' => $coreLen + $existingTrail,
+					]),
 				])]);
 			} elseif ($newTrail > $existingTrail) {
 				$requests[] = new Request(['insertText' => new InsertTextRequest([
@@ -399,7 +407,14 @@ class Manager
 			if ($fields === []) {
 				throw new \InvalidArgumentException("styles entry for '$substring' sets no style; give at least one of bold, italic, underline, fontSizePt, color.");
 			}
-			$ranges = self::styleRequests($objectId, $text, $substring, $style, implode(',', $fields), isset($entry['occurrence']) ? (int) $entry['occurrence'] : null);
+			$ranges = self::styleRequests(
+				$objectId,
+				$text,
+				$substring,
+				$style,
+				implode(',', $fields),
+				isset($entry['occurrence']) ? (int) $entry['occurrence'] : null,
+			);
 			foreach ($ranges as $request) {
 				$requests[] = $request;
 			}
@@ -475,10 +490,9 @@ class Manager
 			throw new \InvalidArgumentException('No style given; set at least one of bold, italic, underline, fontSizePt, foregroundColor.');
 		}
 
-		$text = $this->getElementText($presentationId, $objectId);
-		if ($text === null) {
-			throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
-		}
+		$text = $this->getElementText(
+			$presentationId, $objectId,
+		) ?? throw new \InvalidArgumentException("Element '$objectId' was not found or is not a text-bearing shape.");
 
 		$requests = self::styleRequests($objectId, $text, $substring, $style, implode(',', $fields), $occurrence);
 		if ($requests) {
@@ -631,7 +645,7 @@ class Manager
 		$elements = self::walkElements($slide->getPageElements() ?? []);
 		$notesPage = $slide->getSlideProperties()?->getNotesPage();
 		if ($notesPage !== null) {
-			$elements = array_merge($elements, self::walkElements($notesPage->getPageElements() ?? []));
+			$elements = [...$elements, ...self::walkElements($notesPage->getPageElements() ?? [])];
 		}
 		return $elements;
 	}
@@ -650,7 +664,7 @@ class Manager
 		foreach ($elements as $element) {
 			$group = $element->getElementGroup();
 			if ($group !== null) {
-				$result = array_merge($result, self::walkElements($group->getChildren() ?? []));
+				$result = [...$result, ...self::walkElements($group->getChildren() ?? [])];
 			} else {
 				$result[] = $element;
 			}

@@ -364,7 +364,7 @@ class Manager
 			throw new Exception("Cannot determine reply recipients: the last message in thread $thread->id has no usable To or Reply-To address.");
 		}
 		$ccs = array_values(array_diff(
-			self::extractEmails(array_merge($last->toRecipients, $last->ccRecipients)),
+			self::extractEmails([...$last->toRecipients, ...$last->ccRecipients]),
 			$tos,
 			[$myAddress],
 		));
@@ -415,7 +415,7 @@ class Manager
 		if ($htmlBody !== null && $htmlBody !== '') {
 			// setHtmlBody keeps the plaintext set above as the text/plain alternative; if $body was ''
 			// it derives one from the HTML. basePath is null so no local-image embedding is attempted.
-			$mail->setHtmlBody($htmlBody, basePath: null);
+			$mail->setHtmlBody($htmlBody);
 		}
 		$totalBytes = 0;
 		foreach ($attachments as $att) {
@@ -716,7 +716,7 @@ class Manager
 	private static function base64UrlDecode(string $data): string
 	{
 		$padded = str_pad(strtr($data, '-_', '+/'), (int) (ceil(strlen($data) / 4) * 4), '=');
-		$decoded = base64_decode($padded, true);
+		$decoded = base64_decode($padded, strict: true);
 		if ($decoded === false) {
 			throw new Exception('Invalid base64url data.');
 		}

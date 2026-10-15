@@ -23,7 +23,7 @@ test('draft carries the raw RFC 2822 message, base64url-encoded', function () us
 
 	$raw = $draft->getMessage()->getRaw();
 	Assert::false((bool) preg_match('~[+/=]~', $raw)); // URL-safe alphabet, no padding
-	$decoded = base64_decode(strtr($raw, '-_', '+/'), true);
+	$decoded = base64_decode(strtr($raw, '-_', '+/'), strict: true);
 	Assert::contains("Subject: Hello\r\n", $decoded);
 	Assert::contains("To: to@example.com\r\n", $decoded);
 	Assert::null($draft->getMessage()->getThreadId());
