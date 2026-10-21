@@ -1,7 +1,7 @@
 {
 	"name": "dg/google-services",
-	"description": "Ergonomic PHP wrapper for Google APIs (Gmail, Calendar, Meet, Slides) plus a single-user MCP server exposing them as tools.",
-	"keywords": ["google", "gmail", "calendar", "slides", "meet", "mcp", "api"],
+	"description": "📬 Google Services: ergonomic PHP wrappers for Gmail, Calendar, Meet and Slides over the official API client, plus an MCP server that gives them to Claude and other AI assistants.",
+	"keywords": ["google api", "gmail", "google calendar", "google meet", "google slides", "mcp", "ai"],
 	"type": "library",
 	"authors": [
 		{
