@@ -174,7 +174,7 @@ class Manager
 			return;
 		}
 
-		$event->setAttendees($attendees);
+		$event->setAttendees(array_values($attendees));
 		$updateOptions = ['sendUpdates' => 'none'];
 		$this->service->events->update($calendarId, $eventId, $event, $updateOptions);
 	}
