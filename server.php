@@ -17,6 +17,7 @@ use DG\Google\ToolSelection;
 use Google\Service as GS;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Server;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Transport\StdioTransport;
 
 $tokenDir = getenv('GOOGLE_TOKEN_DIR') ?: __DIR__ . '/demo/tokens';
@@ -119,10 +120,22 @@ $instructions = [...$header, implode("\n", $security), ...$hints];
 // Tools are registered by ToolLoader instead of the SDK's discovery, so only the selected ones exist.
 $server = Server::builder()
 	->setServerInfo('google-services', '1.0.0', 'MCP server for Google services (Gmail, Calendar, Slides)')
+	// a stdio session lasts as long as the process, the idle run loop would expire it after an hour
+	->setSession(new InMemorySessionStore(ttl: PHP_INT_MAX))
 	->setInstructions(implode("\n\n", $instructions))
 	->setContainer($container)
 	->setReferenceHandler(new McpToolCallGuard(new ReferenceHandler($container)))
 	->addLoader(new ToolLoader($tools))
 	->build();
 
-$server->run(new StdioTransport);
+// fgets() on a pipe silent for about 13.5 hours reports a false EOF on Windows, which would end the server
+$server->run(new class extends StdioTransport {
+	protected function processInput(): void
+	{
+		$read = [STDIN];
+		$write = $except = null;
+		if (stream_select($read, $write, $except, 0, 50000) > 0) {
+			parent::processInput();
+		}
+	}
+});
