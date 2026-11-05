@@ -82,7 +82,7 @@ class Manager
 				'date' => (new \DateTimeImmutable)->setTimestamp(intdiv((int) $last->getInternalDate(), 1000)),
 				'snippet' => $last->getSnippet(),
 				'messageCount' => count($messages),
-				'labelIds' => $last->getLabelIds(),
+				'labelIds' => $last->getLabelIds() ?? [],
 			];
 		}
 		return ['threads' => $result, 'nextPageToken' => $nextPageToken];
@@ -488,7 +488,7 @@ class Manager
 			htmlBody: $html,
 			messageIdHeader: $headers['message-id'] ?? null,
 			referencesHeader: $headers['references'] ?? null,
-			labelIds: $msg->getLabelIds(),
+			labelIds: $msg->getLabelIds() ?? [],
 			attachments: self::extractAttachments($payload),
 		);
 	}

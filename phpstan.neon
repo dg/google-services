@@ -23,6 +23,12 @@ parameters:
 			path: src/Gmail/Manager.php
 			count: 2
 
+		-	# Google's stub types Message::getLabelIds() as string[], but a message without labels
+			# (a scheduled one) returns null. The ?? [] guard is the runtime defense.
+			identifier: nullCoalesce.expr
+			path: src/Gmail/Manager.php
+			count: 2
+
 		# Slides text extraction (Manager + McpTools) walks Google's generated DTOs (Shape, Table,
 		# TextContent, TextRun, Placeholder, Page...). Their stubs type every getter as non-nullable,
 		# but at runtime any of them is null when that part is absent (a shape without text, a
