@@ -279,6 +279,14 @@ class Manager
 	}
 
 
+	public function deleteEvent(string $eventId, ?string $calendarId = null): void
+	{
+		$this->service->events->delete($calendarId ?? $this->calendarId, $eventId, [
+			'sendUpdates' => 'none',
+		]);
+	}
+
+
 	/**
 	 * @param  string[]  $emails
 	 * @return array<string, true>
