@@ -19,11 +19,13 @@ takes an already-built `Gmail` service (the factory builds it outside), while
   `iconv(...//IGNORE)` → `Strings::fixEncoding`, so a mislabeled charset can't produce a
   string that later breaks `json_encode`. `splitAddressList` splits on commas **outside
   quotes**.
-- **`createReplyMessage` is the most delicate logic.** Reply-To wins; otherwise, if the
-  last message is **ours** (`strcasecmp` sender == my address), it addresses the
-  original recipients (replying "to the sender" would just mail ourselves); our own
-  address is stripped from Cc; `In-Reply-To`/`References` come from the last message-id;
-  `Re:` is added only if absent.
+- **`createReplyMessage` is the most delicate logic.** It answers the last message of the
+  thread, or the one given by `$messageId` (the reply tools' `messageId`, needed when
+  several people answered one BCC mass mail into a single thread); an ID from another
+  thread is an `InvalidArgumentException`. Reply-To wins; otherwise, if that message is
+  **ours** (`strcasecmp` sender == my address), it addresses the original recipients
+  (replying "to the sender" would just mail ourselves); our own address is stripped from
+  Cc; `In-Reply-To`/`References` come from its message-id; `Re:` is added only if absent.
 - **Attachment sandbox is two-layered.** The MCP layer's `resolveSandboxedPath` requires
   a flat filename, `realpath`-contains it, and checks for a symlink escape; the Manager
   layer enforces an 18 MB cap with a `filesize()` precheck **before** reading, so an

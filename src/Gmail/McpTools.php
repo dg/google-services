@@ -412,13 +412,15 @@ class McpTools
 
 	/**
 	 * Create a draft reply attached to an existing thread. Subject, To, Cc, In-Reply-To
-	 * and References are auto-derived from the last message in the thread.
+	 * and References are auto-derived from the last message in the thread, or from messageId.
 	 * Your own address is removed from Cc to avoid replying to yourself.
 	 *
 	 * @param string $threadId  Thread to reply into
 	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
 	 *   Total raw size capped at 18 MB.
+	 * @param string $messageId  Message of the thread to reply to (messages[].id from gmail_get_thread); default the last one.
+	 *   Pass it when replying to someone other than the last sender, e.g. one of several replies to a BCC mass mail.
 	 * @return array{draftId: string}
 	 */
 	#[Access(AccessLevel::Write)]
@@ -432,10 +434,11 @@ class McpTools
 		string $body,
 		#[Schema(items: self::AttachmentSchema)]
 		array $attachments = [],
+		string $messageId = '',
 	): array
 	{
 		$mgr = $this->getManager();
-		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments));
+		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments), $messageId === '' ? null : $messageId);
 		return ['draftId' => $mgr->saveDraft($mail, $threadId)];
 	}
 
@@ -541,15 +544,17 @@ class McpTools
 
 	/**
 	 * Overwrite an existing reply draft (one attached to a thread) with a new body / attachments.
-	 * Subject, To, Cc, In-Reply-To and References are re-derived from the thread's last message, just
-	 * like gmail_create_draft_reply, so the draft stays a correct reply. Use this to revise a reply
-	 * draft instead of deleting and recreating it.
+	 * Subject, To, Cc, In-Reply-To and References are re-derived from the thread's last message (or from
+	 * messageId), just like gmail_create_draft_reply, so the draft stays a correct reply. Use this to revise
+	 * a reply draft instead of deleting and recreating it.
 	 *
 	 * @param string $draftId  Draft ID returned by gmail_create_draft_reply / gmail_list_drafts
 	 * @param string $threadId  Thread the draft replies into (from gmail_list_drafts)
 	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
 	 *   Total raw size capped at 18 MB.
+	 * @param string $messageId  Message of the thread to reply to; default the last one. Pass the same one
+	 *   as when the draft was created, otherwise the draft is readdressed to the last sender.
 	 * @return array{draftId: string}
 	 */
 	#[Access(AccessLevel::Write)]
@@ -564,10 +569,11 @@ class McpTools
 		string $body,
 		#[Schema(items: self::AttachmentSchema)]
 		array $attachments = [],
+		string $messageId = '',
 	): array
 	{
 		$mgr = $this->getManager();
-		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments));
+		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments), $messageId === '' ? null : $messageId);
 		return ['draftId' => $mgr->updateDraft($draftId, $mail, $threadId)];
 	}
 
@@ -620,6 +626,8 @@ class McpTools
 	 * @param string $body  Plain-text body
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
 	 *   Total raw size capped at 18 MB.
+	 * @param string $messageId  Message of the thread to reply to (messages[].id from gmail_get_thread); default the last one.
+	 *   Pass it when replying to someone other than the last sender, e.g. one of several replies to a BCC mass mail.
 	 * @return array{messageId: string}
 	 */
 	#[Access(AccessLevel::Send)]
@@ -633,9 +641,15 @@ class McpTools
 		string $body,
 		#[Schema(items: self::AttachmentSchema)]
 		array $attachments = [],
+		string $messageId = '',
 	): array
 	{
-		return ['messageId' => $this->getManager()->sendReply($threadId, $body, $this->validateAttachments($attachments))];
+		return ['messageId' => $this->getManager()->sendReply(
+			$threadId,
+			$body,
+			$this->validateAttachments($attachments),
+			$messageId === '' ? null : $messageId,
+		)];
 	}
 
 

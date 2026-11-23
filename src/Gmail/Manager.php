@@ -234,14 +234,14 @@ class Manager
 
 
 	/**
-	 * Sends a reply into the thread immediately.
+	 * Sends a reply into the thread immediately, answering the message $messageId (default the last one).
 	 *
 	 * @param list<array{filename: string, path: string}> $attachments
 	 * @return string  message ID
 	 */
-	public function sendReply(string $threadId, string $body, array $attachments = []): string
+	public function sendReply(string $threadId, string $body, array $attachments = [], ?string $messageId = null): string
 	{
-		$mail = $this->createReplyMessage($threadId, $body, $attachments);
+		$mail = $this->createReplyMessage($threadId, $body, $attachments, $messageId);
 
 		$message = new Gmail\Message;
 		$message->setRaw(self::base64UrlEncode($mail->generateMessage()));
@@ -332,53 +332,72 @@ class Manager
 
 	/**
 	 * Builds a Nette\Mail\Message reply for the given thread: subject (Re: prefix),
-	 * To/Cc, In-Reply-To and References are derived from the last message; the user's
-	 * own address is stripped from Cc.
+	 * To/Cc, In-Reply-To and References are derived from the message $messageId, or from
+	 * the last message when null; the user's own address is stripped from Cc.
 	 *
 	 * @param list<array{filename: string, path: string}> $attachments
 	 */
-	public function createReplyMessage(string $threadId, string $body, array $attachments): MailMessage
+	public function createReplyMessage(
+		string $threadId,
+		string $body,
+		array $attachments,
+		?string $messageId = null,
+	): MailMessage
 	{
 		// metadata-only fetch: we need headers (From/To/Cc/Subject/Message-Id/References), not bodies
 		$thread = $this->fetchThread($threadId, 'metadata');
-		$last = end($thread->messages);
-		if ($last === false) {
-			throw new Exception("Thread $thread->id has no messages.");
-		}
+		$original = $this->findReplyTarget($thread, $messageId);
 
 		$myAddress = $this->getMyAddress();
 		// Whom to address. Reply-To wins when present. Otherwise reply to the sender — EXCEPT when the
-		// last message is our own (we sent it), where Gmail addresses the original recipients instead;
+		// message is our own (we sent it), where Gmail addresses the original recipients instead;
 		// replying "to the sender" there would just mail ourselves.
-		$lastFromMe = strcasecmp($last->sender->email, $myAddress) === 0;
+		$fromMe = strcasecmp($original->sender->email, $myAddress) === 0;
 		$tos = match (true) {
-			$last->replyToRecipients !== [] => self::extractEmails($last->replyToRecipients),
-			$lastFromMe => self::extractEmails($last->toRecipients),
-			default => self::extractEmails([$last->sender]),
+			$original->replyToRecipients !== [] => self::extractEmails($original->replyToRecipients),
+			$fromMe => self::extractEmails($original->toRecipients),
+			default => self::extractEmails([$original->sender]),
 		};
 		if ($tos === []) {
-			// our own last message with no To (Bcc-only) leaves nobody to address the reply to
-			throw new Exception("Cannot determine reply recipients: the last message in thread $thread->id has no usable To or Reply-To address.");
+			// our own message with no To (Bcc-only) leaves nobody to address the reply to
+			throw new Exception("Cannot determine reply recipients: message $original->id in thread $thread->id has no usable To or Reply-To address.");
 		}
 		$ccs = array_values(array_diff(
-			self::extractEmails([...$last->toRecipients, ...$last->ccRecipients]),
+			self::extractEmails([...$original->toRecipients, ...$original->ccRecipients]),
 			$tos,
 			[$myAddress],
 		));
 
 		$mail = self::createMessage(
 			$tos,
-			preg_match('/^re:\s/i', $last->subject) ? $last->subject : 'Re: ' . $last->subject,
+			preg_match('/^re:\s/i', $original->subject) ? $original->subject : 'Re: ' . $original->subject,
 			$body,
 			$ccs,
 			[],
 			$attachments,
 		);
-		if ($last->messageIdHeader !== null) {
-			$mail->setHeader('In-Reply-To', $last->messageIdHeader);
-			$mail->setHeader('References', trim(($last->referencesHeader ?? '') . ' ' . $last->messageIdHeader));
+		if ($original->messageIdHeader !== null) {
+			$mail->setHeader('In-Reply-To', $original->messageIdHeader);
+			$mail->setHeader('References', trim(($original->referencesHeader ?? '') . ' ' . $original->messageIdHeader));
 		}
 		return $mail;
+	}
+
+
+	/**
+	 * Returns the message $messageId of the thread, or its last message when null.
+	 */
+	private function findReplyTarget(Thread $thread, ?string $messageId): Message
+	{
+		if ($messageId === null) {
+			return end($thread->messages) ?: throw new Exception("Thread $thread->id has no messages.");
+		}
+		foreach ($thread->messages as $message) {
+			if ($message->id === $messageId) {
+				return $message;
+			}
+		}
+		throw new \InvalidArgumentException("Message $messageId is not in thread $thread->id.");
 	}
 
 

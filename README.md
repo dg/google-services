@@ -2,7 +2,7 @@
 
 Ergonomic PHP wrappers over the official `google/apiclient` for **Gmail, Calendar, Meet and Google Slides**, plus a single-user **MCP server** (stdio) that exposes those operations as tools to Claude and other MCP clients.
 
-- **Gmail** – search threads, read bodies (with charset/RFC 2047 decoding and HTML→text), draft / update / send / reply, labels, attachments (sandboxed), archive, trash.
+- **Gmail** – search threads, read bodies (with charset/RFC 2047 decoding and HTML→text), draft / update / send / reply (to the last or a chosen message of a thread), labels, attachments (sandboxed), archive, trash.
 - **Calendar** – list events and calendars, create events (with Meet links, recurrence, reminders), manage attendees.
 - **Meet** – create standalone meeting spaces.
 - **Slides** – read a deck, edit text while preserving inline formatting, style runs, add/duplicate/move/hide slides, and add text boxes.

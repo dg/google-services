@@ -26,7 +26,13 @@ function makeManagerWithThread(string $myAddress, Thread $thread): Manager
 }
 
 
-function makeThread(
+function makeThread(mixed ...$args): Thread
+{
+	return new Thread('t1', [makeMessage(...$args)]);
+}
+
+
+function makeMessage(
 	string $subject,
 	?Recipient $sender = null,
 	array $to = [],
@@ -34,10 +40,11 @@ function makeThread(
 	array $replyTo = [],
 	?string $messageId = null,
 	?string $references = null,
-): Thread
+	string $id = 'm1',
+): Message
 {
-	$msg = new Message(
-		id: 'm1',
+	return new Message(
+		id: $id,
 		date: new DateTimeImmutable('2026-01-01T00:00:00Z'),
 		sender: $sender ?? new Recipient('them@example.com', 'Them'),
 		toRecipients: $to,
@@ -50,7 +57,6 @@ function makeThread(
 		messageIdHeader: $messageId,
 		referencesHeader: $references,
 	);
-	return new Thread('t1', [$msg]);
 }
 
 
@@ -151,6 +157,78 @@ test('our own Bcc-only last message is rejected with a clear error', function ()
 		fn() => $build->invoke($manager, 't1', 'body', []),
 		DG\Google\Gmail\Exception::class,
 		'Cannot determine reply recipients:%a%',
+	);
+});
+
+
+function makeBccReplies(): Thread
+{
+	return new Thread('t1', [
+		makeMessage('Reminder', new Recipient('me@example.com'), to: [new Recipient('me@example.com')], messageId: '<reminder@host>'),
+		makeMessage(
+			'Re: Reminder',
+			new Recipient('first@example.com'),
+			to: [new Recipient('me@example.com')],
+			messageId: '<first@host>',
+			references: '<reminder@host>',
+			id: 'm2',
+		),
+		makeMessage(
+			'RE: Reminder',
+			new Recipient('second@example.com'),
+			to: [new Recipient('me@example.com')],
+			cc: [new Recipient('boss@example.com')],
+			messageId: '<second@host>',
+			references: '<reminder@host>',
+			id: 'm3',
+		),
+	]);
+}
+
+
+test('without messageId the reply answers the last message', function () use ($build) {
+	$manager = makeManagerWithThread('me@example.com', makeBccReplies());
+	$raw = $build->invoke($manager, 't1', 'body', [])->generateMessage();
+
+	Assert::contains('To: second@example.com', $raw);
+	Assert::contains('Cc: boss@example.com', $raw);
+	Assert::contains('Subject: RE: Reminder', $raw);
+	Assert::contains('In-Reply-To: <second@host>', $raw);
+});
+
+
+test('messageId answers that message of the thread', function () use ($build) {
+	$manager = makeManagerWithThread('me@example.com', makeBccReplies());
+	$raw = $build->invoke($manager, 't1', 'body', [], 'm2')->generateMessage();
+	$head = substr($raw, 0, strpos($raw, "\r\n\r\n") ?: strlen($raw));
+
+	Assert::contains('To: first@example.com', $head);
+	Assert::notContains('second@example.com', $head);
+	Assert::notContains('boss@example.com', $head);
+	Assert::contains('Subject: Re: Reminder', $head);
+	Assert::contains('In-Reply-To: <first@host>', $head);
+	Assert::contains('References: <reminder@host> <first@host>', $head);
+});
+
+
+test('messageId of our own message addresses its recipients', function () use ($build) {
+	$thread = new Thread('t1', [
+		makeMessage('Hi', new Recipient('me@example.com'), to: [new Recipient('client@example.com')]),
+		makeMessage('Re: Hi', new Recipient('other@example.com'), id: 'm2'),
+	]);
+	$manager = makeManagerWithThread('me@example.com', $thread);
+	$raw = $build->invoke($manager, 't1', 'body', [], 'm1')->generateMessage();
+
+	Assert::contains('To: client@example.com', $raw);
+});
+
+
+test('messageId outside the thread is refused', function () use ($build) {
+	$manager = makeManagerWithThread('me@example.com', makeBccReplies());
+	Assert::exception(
+		fn() => $build->invoke($manager, 't1', 'body', [], 'other-thread-msg'),
+		InvalidArgumentException::class,
+		'Message other-thread-msg is not in thread t1.',
 	);
 });
 
