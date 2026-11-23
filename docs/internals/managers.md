@@ -26,6 +26,8 @@ takes an already-built `Gmail` service (the factory builds it outside), while
   **ours** (`strcasecmp` sender == my address), it addresses the original recipients
   (replying "to the sender" would just mail ourselves); our own address is stripped from
   Cc; `In-Reply-To`/`References` come from its message-id; `Re:` is added only if absent.
+  `gmail_update_draft_reply` without `messageId` keeps the message the draft already
+  answers: `findRepliedMessageId` matches the draft's `In-Reply-To` against the thread.
 - **Attachment sandbox is two-layered.** The MCP layer's `resolveSandboxedPath` requires
   a flat filename, `realpath`-contains it, and checks for a symlink escape; the Manager
   layer enforces an 18 MB cap with a `filesize()` precheck **before** reading, so an

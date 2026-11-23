@@ -204,6 +204,27 @@ class Manager
 
 
 	/**
+	 * Returns the ID of the thread message the draft answers, matched by its In-Reply-To header,
+	 * or null when it answers none of them.
+	 */
+	public function findRepliedMessageId(string $draftId, string $threadId): ?string
+	{
+		$draft = $this->service->users_drafts->get($this->userId, $draftId, ['format' => 'metadata']);
+		$inReplyTo = self::indexHeaders($draft->getMessage()->getPayload()->getHeaders())['in-reply-to'] ?? null;
+		if ($inReplyTo === null) {
+			return null;
+		}
+
+		foreach ($this->fetchThread($threadId, 'metadata')->messages as $message) {
+			if ($message->messageIdHeader === $inReplyTo) {
+				return $message->id;
+			}
+		}
+		return null;
+	}
+
+
+	/**
 	 * Sends an existing draft.
 	 *
 	 * @return string  message ID of the sent message

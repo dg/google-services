@@ -544,7 +544,7 @@ class McpTools
 
 	/**
 	 * Overwrite an existing reply draft (one attached to a thread) with a new body / attachments.
-	 * Subject, To, Cc, In-Reply-To and References are re-derived from the thread's last message (or from
+	 * Subject, To, Cc, In-Reply-To and References are re-derived from the message the draft answers (or from
 	 * messageId), just like gmail_create_draft_reply, so the draft stays a correct reply. Use this to revise
 	 * a reply draft instead of deleting and recreating it.
 	 *
@@ -553,8 +553,8 @@ class McpTools
 	 * @param string $body  Plain-text body. Do NOT include quoted history; the thread shows it.
 	 * @param mixed[] $attachments  Files to attach. Each {filename, path}; paths are plain filenames inside GOOGLE_FILES_DIR.
 	 *   Total raw size capped at 18 MB.
-	 * @param string $messageId  Message of the thread to reply to; default the last one. Pass the same one
-	 *   as when the draft was created, otherwise the draft is readdressed to the last sender.
+	 * @param string $messageId  Message of the thread to reply to; default the one the draft already answers,
+	 *   or the last one when it answers none.
 	 * @return array{draftId: string}
 	 */
 	#[Access(AccessLevel::Write)]
@@ -573,7 +573,12 @@ class McpTools
 	): array
 	{
 		$mgr = $this->getManager();
-		$mail = $mgr->createReplyMessage($threadId, $body, $this->validateAttachments($attachments), $messageId === '' ? null : $messageId);
+		$mail = $mgr->createReplyMessage(
+			$threadId,
+			$body,
+			$this->validateAttachments($attachments),
+			$messageId === '' ? $mgr->findRepliedMessageId($draftId, $threadId) : $messageId,
+		);
 		return ['draftId' => $mgr->updateDraft($draftId, $mail, $threadId)];
 	}
 
