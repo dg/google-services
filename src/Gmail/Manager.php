@@ -26,10 +26,10 @@ class Manager
 
 	/**
 	 * Lightweight search over threads (same query syntax as Gmail web UI).
-	 * Returns only metadata of the latest message in each thread; does NOT fetch full bodies.
-	 * Pass `nextPageToken` from a previous response back as `$pageToken` to continue.
+	 * Returns metadata of the latest message in each thread and the senders still awaiting a reply;
+	 * does NOT fetch full bodies. Pass `nextPageToken` from a previous response back as `$pageToken` to continue.
 	 *
-	 * @return array{threads: list<array{threadId: string, subject: string, sender: Recipient, date: \DateTimeImmutable, snippet: string, messageCount: int, labelIds: string[]}>, nextPageToken: ?string}
+	 * @return array{threads: list<array{threadId: string, subject: string, sender: Recipient, date: \DateTimeImmutable, snippet: string, messageCount: int, labelIds: string[], awaitingReplyFrom: list<Recipient>}>, nextPageToken: ?string}
 	 */
 	public function searchThreads(string $query, int $pageSize = 20, ?string $pageToken = null): array
 	{
@@ -51,7 +51,7 @@ class Manager
 				$batch->add(
 					$this->service->users_threads->get($this->userId, $stub->getId(), [
 						'format' => 'metadata',
-						'metadataHeaders' => ['From', 'Subject', 'Date'],
+						'metadataHeaders' => ['From', 'To', 'Cc', 'Subject', 'Date'],
 					]),
 					$stub->getId(),
 				);
@@ -83,9 +83,37 @@ class Manager
 				'snippet' => $last->getSnippet(),
 				'messageCount' => count($messages),
 				'labelIds' => $last->getLabelIds() ?? [],
+				'awaitingReplyFrom' => self::findAwaitingReply($messages, $this->getMyAddress()),
 			];
 		}
 		return ['threads' => $result, 'nextPageToken' => $nextPageToken];
+	}
+
+
+	/**
+	 * Senders of messages that no later message of mine addresses in To or Cc. A thread of replies
+	 * to a BCC mass mail holds several of them, while the search shows only the last one.
+	 *
+	 * @param  Gmail\Message[]  $messages  in thread order
+	 * @return list<Recipient>
+	 */
+	private static function findAwaitingReply(array $messages, string $myAddress): array
+	{
+		$awaiting = [];
+		foreach ($messages as $message) {
+			$headers = self::indexHeaders($message->getPayload()->getHeaders());
+			$sender = self::splitAddressList($headers['from'] ?? '')[0] ?? null;
+			if ($sender === null) {
+				continue;
+			} elseif (strcasecmp($sender->email, $myAddress) !== 0) {
+				$awaiting[strtolower($sender->email)] = $sender;
+			} else {
+				foreach (self::splitAddressList(($headers['to'] ?? '') . ',' . ($headers['cc'] ?? '')) as $recipient) {
+					unset($awaiting[strtolower($recipient->email)]);
+				}
+			}
+		}
+		return array_values($awaiting);
 	}
 
 
